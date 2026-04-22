@@ -1,7 +1,21 @@
+// --- Initialize Dynamic Dates on Load ---
+document.addEventListener('DOMContentLoaded', () => {
+    const dateEl = document.getElementById('current-date-display');
+    const bannerDateEl = document.getElementById('banner-date-display');
+    
+    if(dateEl && bannerDateEl) {
+        const fullOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const shortOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        bannerDateEl.innerText = new Date().toLocaleDateString('en-US', fullOptions);
+        dateEl.innerText = new Date().toLocaleDateString('en-US', shortOptions);
+    }
+});
+
 // --- Navigation Logic ---
 function login() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-layout').style.display = 'flex';
+    initData(); 
 }
 
 function showSection(sectionId, navElement) {
@@ -13,26 +27,278 @@ function showSection(sectionId, navElement) {
     }
 }
 
-// --- Dummy Data (10 Patients) ---
-const dummyPatients = [
-    { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '(555) 123-4567', blood: 'O+', date: '2024-04-15', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 } }, 
-    { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '(555) 234-5678', blood: 'A+', date: '2024-04-18', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 } }, 
-    { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '(555) 345-6789', blood: 'B-', date: '2024-04-10', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 } },
-    { id: 'P004', name: 'Robert Williams', age: 62, sex: 'Male', contact: '(555) 456-7890', blood: 'AB+', date: '2024-04-20', vitals: { bpSys: 130, bpDia: 85, hr: 75, temp: 38.2, spo2: 96, resp: 20, bmi: 28.4 } }, 
-    { id: 'P005', name: 'Amanda Foster', age: 31, sex: 'Female', contact: '(555) 567-8901', blood: 'B+', date: '2024-04-12', vitals: { bpSys: 110, bpDia: 70, hr: 125, temp: 36.6, spo2: 98, resp: 22, bmi: 23.1 } }, 
-    { id: 'P006', name: 'David Kim', age: 55, sex: 'Male', contact: '(555) 678-9012', blood: 'A-', date: '2024-04-05', vitals: { bpSys: 125, bpDia: 82, hr: 45, temp: 36.5, spo2: 96, resp: 12, bmi: 24.5 } }, 
-    { id: 'P007', name: 'Lisa Thompson', age: 41, sex: 'Female', contact: '(555) 789-0123', blood: 'O-', date: '2024-04-19', vitals: { bpSys: 118, bpDia: 78, hr: 72, temp: 37.0, spo2: 98, resp: 16, bmi: 22.8 } },
-    { id: 'P008', name: 'James Anderson', age: 70, sex: 'Male', contact: '(555) 890-1234', blood: 'O+', date: '2024-04-14', vitals: { bpSys: 85, bpDia: 55, hr: 60, temp: 36.0, spo2: 95, resp: 14, bmi: 20.2 } }, 
-    { id: 'P009', name: 'Jennifer Martinez', age: 25, sex: 'Female', contact: '(555) 901-2345', blood: 'A+', date: '2024-04-21', vitals: { bpSys: 120, bpDia: 80, hr: 70, temp: 36.9, spo2: 88, resp: 18, bmi: 21.5 } }, 
-    { id: 'P010', name: 'Thomas Brown', age: 48, sex: 'Male', contact: '(555) 012-3456', blood: 'AB-', date: '2024-04-16', vitals: { bpSys: 130, bpDia: 85, hr: 85, temp: 37.3, spo2: 97, resp: 16, bmi: 25.0 } }
-];
+// --- Local Storage & Data Management ---
+let patients = [];
+let appointments = [];
+let labs = [];
+let pharmacy = [];
 
-// --- Patient Table Generation & Row Highlighting ---
+function initData() {
+    if (localStorage.getItem('ehr_patients_v2')) {
+        patients = JSON.parse(localStorage.getItem('ehr_patients_v2'));
+    } else {
+        patients = [
+            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 } }, 
+            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '2024-04-18', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 } },
+            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '2024-04-10', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 } }
+        ];
+        saveData();
+    }
+
+    if (localStorage.getItem('ehr_appointments_v2')) {
+        appointments = JSON.parse(localStorage.getItem('ehr_appointments_v2'));
+    } else {
+        appointments = [
+            { id: 1, name: 'Sarah Johnson', time: 'Today, 09:00 AM', doc: 'Dr. Maria Santos', type: 'Follow-up', status: 'completed' },
+            { id: 2, name: 'Emily Rodriguez', time: 'Tomorrow, 09:30 AM', doc: 'Dr. Elena Reyes', type: 'Checkup', status: 'pending' }
+        ];
+        saveData();
+    }
+
+    if (localStorage.getItem('ehr_labs_v2')) {
+        labs = JSON.parse(localStorage.getItem('ehr_labs_v2'));
+    } else {
+        labs = [
+            { id: 1, name: 'Sarah Johnson', test: 'Lipid Panel', date: '2024-04-22', status: 'completed' },
+            { id: 2, name: 'Michael Chen', test: 'Microalbumin', date: '2024-04-22', status: 'pending' }
+        ];
+        saveData();
+    }
+
+    if (localStorage.getItem('ehr_pharmacy_v2')) {
+        pharmacy = JSON.parse(localStorage.getItem('ehr_pharmacy_v2'));
+    } else {
+        pharmacy = [
+            { id: 1, name: 'Sarah Johnson', meds: 'Amoxicillin 500mg', doc: 'Dr. Maria Santos', status: 'dispensed' },
+            { id: 2, name: 'Michael Chen', meds: 'Losartan 50mg', doc: 'Dr. Juan Dela Cruz', status: 'pending' }
+        ];
+        saveData();
+    }
+
+    updateDashboards();
+    populateTable();
+    populateAppointments();
+    populateLabs();
+    populatePharmacy();
+}
+
+function saveData() {
+    localStorage.setItem('ehr_patients_v2', JSON.stringify(patients));
+    localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
+    localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
+    localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
+    updateDashboards();
+}
+
+// --- Dashboards & Modern Modals ---
+function updateDashboards() {
+    document.getElementById('dash-patient-count').innerText = patients.length;
+    document.getElementById('dash-appt-count').innerText = appointments.length;
+    document.getElementById('dash-lab-count').innerText = labs.length;
+    if(document.getElementById('dash-rx-count')) document.getElementById('dash-rx-count').innerText = pharmacy.length;
+
+    let pendingAppts = appointments.filter(a => a.status === 'pending').length;
+    let pendingLabs = labs.filter(l => l.status === 'pending').length;
+    let criticalPatients = patients.filter(p => p.vitals.spo2 < 90 || p.vitals.bpSys > 160).length;
+    
+    const badge = document.getElementById('notification-badge');
+    if (badge) {
+        if (pendingAppts > 0 || pendingLabs > 0 || criticalPatients > 0) badge.style.display = 'block';
+        else badge.style.display = 'none';
+    }
+    populateRecentPatientsWidget();
+}
+
+function showNotifications() {
+    let pendingAppts = appointments.filter(a => a.status === 'pending').length;
+    let pendingLabs = labs.filter(l => l.status === 'pending').length;
+    let criticalPatients = patients.filter(p => p.vitals.spo2 < 90 || p.vitals.bpSys > 160).length;
+    
+    const list = document.getElementById('notification-list');
+    list.innerHTML = '';
+
+    if (criticalPatients === 0 && pendingAppts === 0 && pendingLabs === 0) {
+        list.innerHTML = `
+            <div class="notif-item">
+                <div class="notif-icon notif-success"><i class="fas fa-check-circle"></i></div>
+                <div class="notif-content"><h4>All caught up!</h4><p>No new notifications at this time.</p></div>
+            </div>`;
+    } else {
+        if (criticalPatients > 0) {
+            list.innerHTML += `
+                <div class="notif-item" style="background: #fff1f2; border-color: #fecaca;">
+                    <div class="notif-icon notif-danger"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="notif-content"><h4>Critical Patients Alert</h4><p>${criticalPatients} Patient(s) flagged as CRITICAL. Check vitals immediately.</p></div>
+                </div>`;
+        }
+        if (pendingAppts > 0) {
+            list.innerHTML += `
+                <div class="notif-item">
+                    <div class="notif-icon notif-warning"><i class="far fa-calendar-alt"></i></div>
+                    <div class="notif-content"><h4>Pending Appointments</h4><p>${pendingAppts} Appointment(s) waiting for confirmation.</p></div>
+                </div>`;
+        }
+        if (pendingLabs > 0) {
+            list.innerHTML += `
+                <div class="notif-item">
+                    <div class="notif-icon notif-info"><i class="fas fa-vial"></i></div>
+                    <div class="notif-content"><h4>Pending Lab Results</h4><p>${pendingLabs} Lab test(s) currently awaiting results.</p></div>
+                </div>`;
+        }
+    }
+    document.getElementById('notification-modal').style.display = 'flex';
+}
+
+function closeNotificationModal() { document.getElementById('notification-modal').style.display = 'none'; }
+
+function generateDailyReport() {
+    let today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('report-date').innerText = today;
+    
+    const list = document.getElementById('report-list');
+    list.innerHTML = `
+        <div class="notif-item">
+            <div class="notif-icon notif-success"><i class="fas fa-users"></i></div>
+            <div class="notif-content"><h4>Total Registered Patients</h4><p>${patients.length} active records</p></div>
+        </div>
+        <div class="notif-item">
+            <div class="notif-icon notif-warning"><i class="far fa-calendar-check"></i></div>
+            <div class="notif-content"><h4>Appointments Handled</h4><p>${appointments.length} scheduled sessions</p></div>
+        </div>
+        <div class="notif-item">
+            <div class="notif-icon notif-info"><i class="fas fa-microscope"></i></div>
+            <div class="notif-content"><h4>Lab Tests Recorded</h4><p>${labs.length} diagnostic tests</p></div>
+        </div>
+        <div class="notif-item">
+            <div class="notif-icon notif-danger" style="background:#fce7f3; color:#831843; border-color:#fbcfe8;"><i class="fas fa-prescription-bottle-alt"></i></div>
+            <div class="notif-content"><h4>Prescriptions Issued</h4><p>${pharmacy.length} medication scripts</p></div>
+        </div>
+    `;
+    document.getElementById('report-modal').style.display = 'flex';
+}
+
+function closeReportModal() { document.getElementById('report-modal').style.display = 'none'; }
+
+function populateRecentPatientsWidget() {
+    const list = document.getElementById('recent-patients-list');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    let recent = patients.slice(-4).reverse();
+    let mockTimes = ['09:15 AM', '10:00 AM', '10:45 AM', '11:30 AM'];
+    
+    recent.forEach((p, index) => {
+        let status = 'Stable';
+        let statusClass = 'status-completed'; 
+        
+        if(p.vitals.spo2 < 90 || p.vitals.bpSys > 160) { 
+            status = 'Critical'; 
+            statusClass = 'status-critical'; 
+        } else if(p.complaint.toLowerCase().includes('checkup') || p.complaint.toLowerCase().includes('fever')) { 
+            status = 'Follow-up'; 
+            statusClass = 'status-pending'; 
+        }
+
+        let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
+        let displayTime = mockTimes[index] || '12:00 PM';
+        
+        list.innerHTML += `
+            <div class="recent-list-item">
+                <div class="r-patient-info">
+                    <div class="r-avatar">${initials}</div>
+                    <div>
+                        <h4>${p.name}</h4>
+                        <p>${p.complaint} • Age ${p.age}</p>
+                    </div>
+                </div>
+                <div class="r-patient-status">
+                    <span class="status-badge ${statusClass}">${status}</span>
+                    <span class="r-time">${displayTime}</span>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// --- PATIENT CRUD OPERATIONS ---
+function prepareNewPatient() {
+    document.getElementById('patient-form').reset();
+    document.getElementById('p-id').value = '';
+    document.getElementById('form-title').innerText = "Register New Patient";
+    showSection('new-patient', document.querySelectorAll('.nav-links li')[1]);
+}
+
+function savePatient(e) {
+    e.preventDefault();
+    const idField = document.getElementById('p-id').value;
+    const newPatient = {
+        id: idField ? idField : 'P00' + (patients.length + 1),
+        name: document.getElementById('p-name').value,
+        age: document.getElementById('p-age').value,
+        sex: document.getElementById('p-sex').value,
+        dob: document.getElementById('p-dob').value,
+        contact: document.getElementById('p-contact').value,
+        address: document.getElementById('p-address').value,
+        blood: document.getElementById('p-blood').value,
+        room: document.getElementById('p-room').value,
+        diet: document.getElementById('p-diet').value || 'Regular',
+        allergies: document.getElementById('p-allergies').value || 'None',
+        civil: document.getElementById('p-civil').value,
+        doctor: document.getElementById('p-doc').value,
+        complaint: document.getElementById('p-complaint').value,
+        date: new Date().toISOString().split('T')[0],
+        vitals: { bpSys: 120, bpDia: 80, hr: 75, temp: 36.8, spo2: 98, resp: 16, bmi: 22.0 }
+    };
+
+    if (idField) {
+        const index = patients.findIndex(p => p.id === idField);
+        newPatient.vitals = patients[index].vitals; 
+        patients[index] = newPatient;
+        alert('Patient updated successfully!');
+    } else {
+        patients.push(newPatient);
+        alert('Patient saved successfully!');
+    }
+
+    saveData();
+    populateTable();
+    showSection('patient-records', document.querySelectorAll('.nav-links li')[1]);
+}
+
+function editPatient(id) {
+    const p = patients.find(x => x.id === id);
+    if (!p) return;
+
+    document.getElementById('p-id').value = p.id;
+    document.getElementById('p-name').value = p.name;
+    document.getElementById('p-age').value = p.age;
+    document.getElementById('p-sex').value = p.sex;
+    document.getElementById('p-contact').value = p.contact;
+    document.getElementById('p-address').value = p.address || '';
+    document.getElementById('p-blood').value = p.blood;
+    document.getElementById('p-room').value = p.room;
+    document.getElementById('p-diet').value = p.diet;
+    document.getElementById('p-allergies').value = p.allergies;
+    document.getElementById('p-doc').value = p.doctor;
+    document.getElementById('p-complaint').value = p.complaint;
+
+    document.getElementById('form-title').innerText = "Edit Patient Record";
+    showSection('new-patient', document.querySelectorAll('.nav-links li')[1]);
+}
+
+function deletePatient(id) {
+    if (confirm("Are you sure you want to delete this patient? This action cannot be undone.")) {
+        patients = patients.filter(p => p.id !== id);
+        saveData();
+        populateTable();
+    }
+}
+
 function populateTable() {
     const tbody = document.getElementById('patients-tbody');
     tbody.innerHTML = '';
 
-    dummyPatients.forEach(patient => {
+    patients.forEach(patient => {
         let v = patient.vitals;
         let isRowCritical = false;
         if (v.spo2 < 90 || v.bpSys > 160 || v.bpSys < 90 || v.hr > 120 || v.hr < 50 || v.temp > 37.5) {
@@ -43,89 +309,143 @@ function populateTable() {
         let rowHtml = `
             <tr class="${rowClass}">
                 <td>
-                    <img src="https://ui-avatars.com/api/?name=${patient.name}&background=random&color=fff&rounded=true&size=36" style="vertical-align: middle; margin-right: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <img src="https://ui-avatars.com/api/?name=${patient.name}&background=831843&color=fff&rounded=true&size=40" style="vertical-align: middle; margin-right: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
                     <div style="display: inline-block; vertical-align: middle;">
-                        <strong style="color: var(--text-dark);">${patient.name}</strong><br>
-                        <span style="font-size: 12px; color: var(--text-light);">${patient.age} yrs • ${patient.sex}</span>
+                        <strong style="color: var(--text-dark); font-size: 15px;">${patient.name}</strong><br>
+                        <span style="font-size: 12px; color: var(--text-light); font-weight: 500;">${patient.age} yrs • ${patient.sex}</span>
                     </div>
                 </td>
-                <td style="font-weight: 500;">${patient.id}</td>
-                <td>${patient.contact}</td>
-                <td><span style="background: #fee2e2; color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">${patient.blood}</span></td>
-                <td>${patient.date}</td>
-                <td><span class="view-btn" onclick="openModal('${patient.id}')">View Details</span></td>
+                <td style="font-weight: 700; color: var(--primary);">${patient.id}</td>
+                <td><span style="background: var(--primary-light); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--primary);"><i class="fas fa-bed" style="margin-right: 4px;"></i> ${patient.room}</span></td>
+                <td><span style="background: #fee2e2; color: #e11d48; padding: 6px 10px; border-radius: 8px; font-weight: 800; font-size: 12px;">${patient.blood}</span></td>
+                <td style="font-weight: 500;">${patient.date}</td>
+                <td class="action-cell">
+                    <span class="view-btn" onclick="openModal('${patient.id}')">View</span>
+                    <i class="fas fa-edit edit-icon" onclick="editPatient('${patient.id}')" title="Edit"></i>
+                    <i class="fas fa-trash delete-icon" onclick="deletePatient('${patient.id}')" title="Delete"></i>
+                </td>
             </tr>
         `;
         tbody.innerHTML += rowHtml;
     });
 }
-populateTable();
 
-// --- NEW: Appointments Table Data ---
-const dummyAppointments = [
-    { name: 'Sarah Johnson', time: 'Today, 09:00 AM', doc: 'Dr. Emily Watson', type: 'Follow-up', status: 'completed' },
-    { name: 'Michael Chen', time: 'Today, 10:00 AM', doc: 'Dr. James Martinez', type: 'Checkup', status: 'completed' },
-    { name: 'Amanda Foster', time: 'Today, 11:30 AM', doc: 'Dr. Emily Watson', type: 'Consultation', status: 'scheduled' },
-    { name: 'James Anderson', time: 'Today, 02:00 PM', doc: 'Dr. Sarah Lee', type: 'Procedure', status: 'scheduled' },
-    { name: 'Emily Rodriguez', time: 'Tomorrow, 09:30 AM', doc: 'Dr. James Martinez', type: 'Checkup', status: 'pending' }
-];
-
+// --- APPOINTMENTS CRUD ---
+function addAppointment() {
+    let name = prompt("Enter Patient Name for Appointment:");
+    if (!name) return;
+    let type = prompt("Enter Visit Type (e.g., Checkup, Surgery):", "Checkup");
+    
+    appointments.push({ id: Date.now(), name: name, time: 'Pending Schedule', doc: 'Unassigned', type: type, status: 'pending' });
+    saveData(); populateAppointments();
+    showSection('appointments-section', document.querySelectorAll('.nav-links li')[2]);
+}
+function cycleApptStatus(id) {
+    let appt = appointments.find(a => a.id === id);
+    if(appt.status === 'pending') appt.status = 'scheduled';
+    else if(appt.status === 'scheduled') appt.status = 'completed';
+    else if(appt.status === 'completed') appt.status = 'cancelled';
+    else appt.status = 'pending';
+    saveData(); populateAppointments();
+}
+function deleteAppointment(id) {
+    if(confirm("Delete this appointment?")) { appointments = appointments.filter(a => a.id !== id); saveData(); populateAppointments(); }
+}
 function populateAppointments() {
-    const tbody = document.getElementById('appointments-tbody');
-    tbody.innerHTML = '';
-    dummyAppointments.forEach(app => {
-        let rowHtml = `
-            <tr>
-                <td><strong>${app.name}</strong></td>
-                <td>${app.time}</td>
-                <td>${app.doc}</td>
-                <td>${app.type}</td>
-                <td><span class="status-badge status-${app.status}">${app.status}</span></td>
-                <td><span class="view-btn" style="background:transparent; padding:0;">Edit</span></td>
-            </tr>
-        `;
-        tbody.innerHTML += rowHtml;
+    const tbody = document.getElementById('appointments-tbody'); tbody.innerHTML = '';
+    appointments.forEach(app => {
+        tbody.innerHTML += `<tr>
+            <td><strong style="color:var(--text-dark);">${app.name}</strong></td><td>${app.time}</td><td>${app.doc}</td><td>${app.type}</td>
+            <td><span class="status-badge status-${app.status}">${app.status}</span></td>
+            <td class="action-cell"><span class="view-btn" style="background:var(--primary-light); color:var(--primary);" onclick="cycleApptStatus(${app.id})">Update</span> <i class="fas fa-trash delete-icon" onclick="deleteAppointment(${app.id})"></i></td>
+        </tr>`;
     });
 }
-populateAppointments();
 
-// --- NEW: Lab Results Table Data ---
-const dummyLabs = [
-    { name: 'Sarah Johnson', test: 'Lipid Panel', date: '2024-04-22', status: 'completed', action: 'View Result' },
-    { name: 'Michael Chen', test: 'Microalbumin', date: '2024-04-22', status: 'pending', action: 'Awaiting' },
-    { name: 'Robert Williams', test: 'BNP', date: '2024-04-21', status: 'completed', action: 'View Result' },
-    { name: 'Lisa Thompson', test: 'Vitamin D', date: '2024-04-20', status: 'pending', action: 'Awaiting' },
-    { name: 'James Anderson', test: 'PSA', date: '2024-04-19', status: 'critical', action: 'Urgent Review' }
-];
-
+// --- LABS CRUD ---
+function addLab() {
+    let name = prompt("Enter Patient Name:");
+    if (!name) return;
+    let test = prompt("Enter Lab Test Type:");
+    labs.push({ id: Date.now(), name: name, test: test, date: new Date().toISOString().split('T')[0], status: 'pending' });
+    saveData(); populateLabs();
+    showSection('labs-section', document.querySelectorAll('.nav-links li')[3]);
+}
+function cycleLabStatus(id) {
+    let lab = labs.find(l => l.id === id);
+    if(lab.status === 'pending') lab.status = 'completed';
+    else if(lab.status === 'completed') lab.status = 'critical';
+    else lab.status = 'pending';
+    saveData(); populateLabs();
+}
+function deleteLab(id) {
+    if(confirm("Delete this lab record?")) { labs = labs.filter(l => l.id !== id); saveData(); populateLabs(); }
+}
 function populateLabs() {
-    const tbody = document.getElementById('labs-tbody');
-    tbody.innerHTML = '';
-    dummyLabs.forEach(lab => {
-        let actionStyle = lab.status === 'critical' ? 'color: var(--danger-red); font-weight: bold;' : 'color: var(--primary); font-weight: 600; cursor: pointer;';
-        let rowHtml = `
-            <tr>
-                <td><strong>${lab.name}</strong></td>
-                <td>${lab.test}</td>
-                <td>${lab.date}</td>
-                <td><span class="status-badge status-${lab.status}">${lab.status}</span></td>
-                <td><span style="${actionStyle}">${lab.action}</span></td>
-            </tr>
-        `;
-        tbody.innerHTML += rowHtml;
+    const tbody = document.getElementById('labs-tbody'); tbody.innerHTML = '';
+    labs.forEach(lab => {
+        tbody.innerHTML += `<tr>
+            <td><strong style="color:var(--text-dark);">${lab.name}</strong></td><td>${lab.test}</td><td>${lab.date}</td>
+            <td><span class="status-badge status-${lab.status}">${lab.status}</span></td>
+            <td class="action-cell"><span class="view-btn" style="background:var(--primary-light); color:var(--primary);" onclick="cycleLabStatus(${lab.id})">Update</span> <i class="fas fa-trash delete-icon" onclick="deleteLab(${lab.id})"></i></td>
+        </tr>`;
     });
 }
-populateLabs();
+
+// --- PHARMACY CRUD ---
+function addMeds() {
+    let name = prompt("Enter Patient Name:");
+    if (!name) return;
+    let med = prompt("Enter Medication & Dosage:");
+    pharmacy.push({ id: Date.now(), name: name, meds: med, doc: 'Unassigned', status: 'pending' });
+    saveData(); populatePharmacy();
+    showSection('pharmacy-section', document.querySelectorAll('.nav-links li')[4]);
+}
+function cycleMedStatus(id) {
+    let med = pharmacy.find(m => m.id === id);
+    if(med.status === 'pending') med.status = 'dispensed';
+    else med.status = 'pending';
+    saveData(); populatePharmacy();
+}
+function deleteMed(id) {
+    if(confirm("Delete this pharmacy order?")) { pharmacy = pharmacy.filter(m => m.id !== id); saveData(); populatePharmacy(); }
+}
+function populatePharmacy() {
+    const tbody = document.getElementById('pharmacy-tbody'); tbody.innerHTML = '';
+    pharmacy.forEach(rx => {
+        tbody.innerHTML += `<tr>
+            <td><strong style="color:var(--text-dark);">${rx.name}</strong></td><td><i class="fas fa-pills" style="color: var(--secondary); margin-right:5px;"></i> ${rx.meds}</td><td>${rx.doc}</td>
+            <td><span class="status-badge status-${rx.status}">${rx.status}</span></td>
+            <td class="action-cell"><span class="view-btn" style="background:var(--primary-light); color:var(--primary);" onclick="cycleMedStatus(${rx.id})">Update</span> <i class="fas fa-trash delete-icon" onclick="deleteMed(${rx.id})"></i></td>
+        </tr>`;
+    });
+}
 
 // --- Modal & Chart Logic ---
 let vitalsChartInstance = null;
 
 function openModal(patientId) {
-    const p = dummyPatients.find(x => x.id === patientId);
+    const p = patients.find(x => x.id === patientId);
     if(!p) return;
 
     document.getElementById('modal-patient-name').innerText = p.name;
-    document.getElementById('modal-patient-info').innerText = `${p.id} • ${p.age} yrs • ${p.sex} • Admitted: ${p.date}`;
+    document.getElementById('modal-patient-info').innerText = `${p.id} • ${p.age} yrs • ${p.sex} • Room: ${p.room}`;
+    document.getElementById('modal-doctor').innerText = p.doctor;
+    
+    let allergyElem = document.getElementById('modal-allergies');
+    allergyElem.innerText = p.allergies;
+    if(p.allergies !== 'None' && p.allergies !== '') {
+        allergyElem.style.color = '#ff0000'; 
+        allergyElem.parentElement.style.background = '#ffe4e6';
+        allergyElem.parentElement.style.borderColor = '#fda4af';
+    } else {
+        allergyElem.style.color = 'var(--text-main)';
+        allergyElem.parentElement.style.background = '#f8fafc';
+        allergyElem.parentElement.style.borderColor = 'var(--border-color)';
+    }
+
+    document.getElementById('modal-diet').innerText = p.diet;
+    document.getElementById('modal-complaint').innerText = p.complaint;
 
     let v = p.vitals;
     let bpClass = (v.bpSys > 160 || v.bpSys < 90) ? 'red-alert-card' : '';
@@ -146,7 +466,7 @@ function openModal(patientId) {
     populateHistoryTable(v);
 
     document.getElementById('patient-modal').style.display = 'flex';
-    switchTab('vitals'); 
+    switchTab('overview'); 
 }
 
 function closeModal() { document.getElementById('patient-modal').style.display = 'none'; }
@@ -163,7 +483,7 @@ function renderChart(name, v) {
     if(vitalsChartInstance) vitalsChartInstance.destroy();
 
     Chart.defaults.font.family = "'Inter', sans-serif";
-    Chart.defaults.color = '#64748b';
+    Chart.defaults.color = '#71717a';
 
     const labels = ['Jan 10', 'Jan 28', 'Feb 14', 'Mar 5', 'Latest'];
     vitalsChartInstance = new Chart(ctx, {
@@ -171,15 +491,15 @@ function renderChart(name, v) {
         data: {
             labels: labels,
             datasets: [
-                { label: 'Systolic BP', data: [v.bpSys-20, v.bpSys-10, v.bpSys+5, v.bpSys-5, v.bpSys], borderColor: '#ef4444', backgroundColor: '#ef4444', borderWidth: 3, tension: 0.4, pointRadius: 4, pointHoverRadius: 6 },
-                { label: 'Diastolic BP', data: [v.bpDia-10, v.bpDia-5, v.bpDia+2, v.bpDia-3, v.bpDia], borderColor: '#fca5a5', backgroundColor: '#fca5a5', borderWidth: 2, borderDash: [5, 5], tension: 0.4, pointRadius: 3 },
-                { label: 'Heart Rate', data: [v.hr+5, v.hr-2, v.hr+8, v.hr-4, v.hr], borderColor: '#0ea5e9', backgroundColor: '#0ea5e9', borderWidth: 3, tension: 0.4, pointRadius: 4, pointHoverRadius: 6 }
+                { label: 'Systolic BP', data: [v.bpSys-20, v.bpSys-10, v.bpSys+5, v.bpSys-5, v.bpSys], borderColor: '#831843', backgroundColor: '#831843', borderWidth: 3, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 },
+                { label: 'Diastolic BP', data: [v.bpDia-10, v.bpDia-5, v.bpDia+2, v.bpDia-3, v.bpDia], borderColor: '#e11d48', backgroundColor: '#e11d48', borderWidth: 2, borderDash: [5, 5], tension: 0.4, pointRadius: 4 },
+                { label: 'Heart Rate', data: [v.hr+5, v.hr-2, v.hr+8, v.hr-4, v.hr], borderColor: '#fb7185', backgroundColor: '#fb7185', borderWidth: 3, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 }
             ]
         },
         options: { 
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
-            plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10, cornerRadius: 8, displayColors: true } },
+            plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10, font: {weight: 'bold'} } }, tooltip: { backgroundColor: 'rgba(30, 27, 75, 0.9)', titleFont: { size: 14 }, bodyFont: { size: 14 }, padding: 12, cornerRadius: 8 } },
             scales: { y: { grid: { color: '#f1f5f9', drawBorder: false } }, x: { grid: { display: false, drawBorder: false } } }
         }
     });
@@ -188,7 +508,7 @@ function renderChart(name, v) {
 function populateHistoryTable(v) {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = `
-        <tr style="background: #f8fafc; font-weight: 600;"><td>Latest</td><td>${v.bpSys} mmHg</td><td>${v.bpDia} mmHg</td></tr>
+        <tr style="background: var(--primary-light); font-weight: 800;"><td>Latest</td><td>${v.bpSys} mmHg</td><td>${v.bpDia} mmHg</td></tr>
         <tr><td>Mar 5</td><td>${v.bpSys - 5} mmHg</td><td>${v.bpDia - 3} mmHg</td></tr>
         <tr><td>Feb 14</td><td>${v.bpSys + 5} mmHg</td><td>${v.bpDia + 2} mmHg</td></tr>
         <tr><td>Jan 28</td><td>${v.bpSys - 10} mmHg</td><td>${v.bpDia - 5} mmHg</td></tr>
