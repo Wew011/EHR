@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EHR System Mockup</title>
+    <!-- Modern Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="screen-container">
+        <div class="login-box">
+            <div class="login-logo"><i class="fas fa-heartbeat"></i></div>
+            <h2>EHR Portal</h2>
+            <p>Authorized Medical Personnel Only</p>
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" id="login-user" placeholder="Enter your username">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="login-pass" placeholder="Enter your password">
+            </div>
+            <button onclick="login()">Sign In <i class="fas fa-arrow-right" style="margin-left: 8px;"></i></button>
+        </div>
+    </div>
+
+    <!-- MAIN APP LAYOUT -->
+    <div id="app-layout" class="screen-container" style="display: none;">
+        
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-hospital-user"></i></div>
+                <span>EHR System</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" onclick="showSection('dashboard', this)"><i class="fas fa-border-all"></i> Dashboard</li>
+                <li onclick="showSection('patient-records', this)"><i class="fas fa-users"></i> Patient Records</li>
+                <!-- NEW: Hooked up the onclick for Appointments and Labs -->
+                <li onclick="showSection('appointments', this)"><i class="fas fa-calendar-check"></i> Appointments</li>
+                <li onclick="showSection('lab-results', this)"><i class="fas fa-flask"></i> Lab Results</li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- DASHBOARD SECTION -->
+            <section id="dashboard" class="content-section active">
+                <header>
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p class="subtitle">Overview of your clinic today</p>
+                    </div>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #3b82f6; background: #eff6ff;"><i class="fas fa-user-injured"></i></div>
+                        <div>
+                            <h3>Total Patients</h3>
+                            <h2>10</h2>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #10b981; background: #ecfdf5;"><i class="fas fa-calendar-check"></i></div>
+                        <div>
+                            <h3>Appointments</h3>
+                            <h2>5</h2>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="color: #f59e0b; background: #fffbeb;"><i class="fas fa-vials"></i></div>
+                        <div>
+                            <h3>Pending Labs</h3>
+                            <h2>9</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="section-title">Quick Actions</h3>
+                <div class="quick-actions">
+                    <div class="action-btn" onclick="showSection('new-patient', null)">
+                        <div class="icon-circle"><i class="fas fa-user-plus"></i></div>
+                        <span>New Patient</span>
+                    </div>
+                    <div class="action-btn" onclick="showSection('appointments', document.querySelectorAll('.nav-links li')[2])">
+                        <div class="icon-circle"><i class="fas fa-calendar-plus"></i></div>
+                        <span>Schedule</span>
+                    </div>
+                    <div class="action-btn">
+                        <div class="icon-circle"><i class="fas fa-file-medical"></i></div>
+                        <span>New Record</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- NEW PATIENT FORM -->
+            <section id="new-patient" class="content-section">
+                <header>
+                    <div>
+                        <h1>Register New Patient</h1>
+                        <p class="subtitle">Enter patient demographics and details</p>
+                    </div>
+                    <button class="back-btn" onclick="showSection('dashboard', document.querySelector('.nav-links li:first-child'))"><i class="fas fa-arrow-left"></i> Back</button>
+                </header>
+                
+                <form class="patient-form" onsubmit="event.preventDefault(); alert('Patient Saved!'); showSection('patient-records', document.querySelectorAll('.nav-links li')[1]);">
+                    <div class="form-grid">
+                        <div class="input-group"><label>Full Name</label><input type="text" required></div>
+                        <div class="input-group"><label>Age</label><input type="number" required></div>
+                        <div class="input-group"><label>Sex</label><select><option>Male</option><option>Female</option></select></div>
+                        <div class="input-group"><label>Birthdate</label><input type="date" required></div>
+                        <div class="input-group"><label>Contact Info</label><input type="text" required></div>
+                        <div class="input-group"><label>Address</label><input type="text" required></div>
+                        <div class="input-group"><label>Place of Birth</label><input type="text"></div>
+                        <div class="input-group"><label>Blood Type</label><select><option>A+</option><option>O+</option><option>B-</option></select></div>
+                        <div class="input-group"><label>Occupation</label><input type="text"></div>
+                        <div class="input-group"><label>Civil Status</label><select><option>Single</option><option>Married</option></select></div>
+                        <div class="input-group"><label>Nationality</label><input type="text"></div>
+                        <div class="input-group"><label>Guardian Contact</label><input type="text"></div>
+                        <div class="input-group full-width"><label>Chief Complaint</label><textarea rows="3" required></textarea></div>
+                    </div>
+                    <button type="submit" class="submit-btn"><i class="fas fa-save"></i> Save Patient Record</button>
+                </form>
+            </section>
+
+            <!-- PATIENT RECORDS TABLE -->
+            <section id="patient-records" class="content-section">
+                <header>
+                    <div>
+                        <h1>Patient Records</h1>
+                        <p class="subtitle">Search and manage patient files</p>
+                    </div>
+                </header>
+                <div class="table-container">
+                    <table id="patients-table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>ID</th>
+                                <th>Contact</th>
+                                <th>Blood Type</th>
+                                <th>Date Admitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patients-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- NEW: APPOINTMENTS SECTION -->
+            <section id="appointments" class="content-section">
+                <header>
+                    <div>
+                        <h1>Appointments</h1>
+                        <p class="subtitle">Manage today's schedule and upcoming visits</p>
+                    </div>
+                    <button class="record-vitals-btn" onclick="alert('Open schedule modal here')"><i class="fas fa-plus"></i> New Appointment</button>
+                </header>
+                <div class="table-container">
+                    <table id="appointments-table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Date & Time</th>
+                                <th>Doctor</th>
+                                <th>Visit Type</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="appointments-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- NEW: LAB RESULTS SECTION -->
+            <section id="lab-results" class="content-section">
+                <header>
+                    <div>
+                        <h1>Lab Results</h1>
+                        <p class="subtitle">Track and review diagnostic tests</p>
+                    </div>
+                    <button class="record-vitals-btn" onclick="alert('Open lab order form here')"><i class="fas fa-vial"></i> Order Lab Test</button>
+                </header>
+                <div class="table-container">
+                    <table id="labs-table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Test Name</th>
+                                <th>Date Ordered</th>
+                                <th>Status</th>
+                                <th>Action/Result</th>
+                            </tr>
+                        </thead>
+                        <tbody id="labs-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- PATIENT DETAILS MODAL -->
+    <div id="patient-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()"><i class="fas fa-times"></i></span>
+            
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-patient-name">Name</h2>
+                    <p id="modal-patient-info">ID | Age | Sex</p>
+                </div>
+                <button class="record-vitals-btn"><i class="fas fa-plus"></i> Record Vitals</button>
+            </div>
+
+            <div class="modal-tabs">
+                <button class="tab-btn" onclick="switchTab('overview')">Overview</button>
+                <button class="tab-btn active" onclick="switchTab('vitals')">Vital Signs</button>
+                <button class="tab-btn">Medications</button>
+                <button class="tab-btn">Diet</button>
+            </div>
+
+            <div class="tab-content" id="tab-overview">
+                <h3>Patient Information</h3>
+                <p style="color: var(--text-light); margin-top: 10px;">General overview content will appear here.</p>
+            </div>
+
+            <div class="tab-content active" id="tab-vitals">
+                <!-- 6 Cards -->
+                <div class="vitals-grid" id="latest-vitals-container"></div>
+                
+                <div class="chart-container">
+                    <h3 style="margin-bottom: 15px; color: var(--text-dark);">Vital Signs History</h3>
+                    <div style="height: 250px;"><canvas id="vitalsChart"></canvas></div>
+                    
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Systolic</th>
+                                <th>Diastolic</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
