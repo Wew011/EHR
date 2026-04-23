@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Helper for precise timestamps format: M/D/YYYY HH:MM:SS
+function getExactTimestamp() {
+    let d = new Date();
+    return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+}
+
 // --- Navigation Logic ---
 function login() {
     document.getElementById('login-screen').style.display = 'none';
@@ -39,9 +45,9 @@ function initData() {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v2'));
     } else {
         patients = [
-            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' } }, 
-            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '2024-04-18', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting' } },
-            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '2024-04-10', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' } }
+            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
+            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '2024-04-18', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
+            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '2024-04-10', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
         saveData();
     }
@@ -234,7 +240,7 @@ function savePatient(e) {
     const idField = document.getElementById('p-id').value;
     
     let initialVitals = { bpSys: 120, bpDia: 80, hr: 75, temp: 36.8, spo2: 98, resp: 16, bmi: 22.0 };
-    let initialRecord = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' };
+    let initialRecord = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: getExactTimestamp() };
     
     const newPatient = {
         id: idField ? idField : 'P00' + (patients.length + 1),
@@ -468,7 +474,7 @@ function openModal(patientId) {
     }
 
     if (!p.record) {
-        p.record = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' };
+        p.record = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: getExactTimestamp() };
         saveData();
     }
 
@@ -506,7 +512,11 @@ function openModal(patientId) {
         <div class="vital-box"><h4>BMI</h4><h2>${v.bmi} <small>Normal</small></h2></div>
     `;
 
-    // Populate Patient Record Tab
+    let dParts = p.date.split('-');
+    let formattedAdmission = `${parseInt(dParts[1])}/${parseInt(dParts[2])}/${dParts[0]}`;
+    
+    document.getElementById('rec-admission').innerText = formattedAdmission;
+    document.getElementById('rec-timestamp').innerText = p.record.timestamp || 'Not recorded';
     document.getElementById('rec-neuro').innerText = p.record.neuro;
     document.getElementById('rec-resp').innerText = p.record.resp;
     document.getElementById('rec-skin').innerText = p.record.skin;
@@ -551,13 +561,14 @@ function savePatientRecord(e) {
         resp: document.getElementById('ur-resp').value,
         skin: document.getElementById('ur-skin').value,
         bowel: document.getElementById('ur-bowel').value,
-        edema: document.getElementById('ur-edema').value
+        edema: document.getElementById('ur-edema').value,
+        timestamp: getExactTimestamp() 
     };
 
     saveData();
     closeRecordModal();
     openModal(currentViewedPatientId);
-    switchTab('record'); // Stay on the same tab
+    switchTab('record'); 
     alert('Patient record updated successfully!');
 }
 
@@ -604,6 +615,12 @@ function saveVitals(e) {
     const index = patients.findIndex(p => p.id === currentViewedPatientId);
     if(index === -1) return;
 
+    // Track active tab to seamlessly return there
+    let activeTabId = 'vitals';
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        if(tab.classList.contains('active')) activeTabId = tab.id.replace('tab-', '');
+    });
+
     let p = patients[index];
     let vId = document.getElementById('v-id').value;
 
@@ -632,7 +649,7 @@ function saveVitals(e) {
     populateTable(); 
     closeAddVitalsModal();
     openModal(currentViewedPatientId); 
-    switchTab('vitals');
+    switchTab(activeTabId);
 }
 
 function deleteVitalRecord(recordId) {
