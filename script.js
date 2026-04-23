@@ -531,6 +531,9 @@ function openRecordModal() {
 
     let currentTs = (p.record.timestamp && p.record.timestamp !== '-') ? p.record.timestamp : getExactTimestamp();
     
+    // Set the Admission Date in the Update modal
+    document.getElementById('ur-admission').value = p.date || '';
+    
     document.getElementById('ur-timestamp').value = currentTs;
     document.getElementById('ur-neuro').value = p.record.neuro;
     document.getElementById('ur-resp').value = p.record.resp;
@@ -549,6 +552,9 @@ function savePatientRecord(e) {
     
     const index = patients.findIndex(p => p.id === currentViewedPatientId);
     if(index === -1) return;
+
+    // Save the new Admission Date
+    patients[index].date = document.getElementById('ur-admission').value;
 
     patients[index].record = {
         neuro: document.getElementById('ur-neuro').value,
