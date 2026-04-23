@@ -41,8 +41,9 @@ let pharmacy = [];
 let currentViewedPatientId = null; 
 
 function initData() {
-    if (localStorage.getItem('ehr_patients_v2')) {
-        patients = JSON.parse(localStorage.getItem('ehr_patients_v2'));
+    // Upgraded to v3 to ensure empty default states work perfectly
+    if (localStorage.getItem('ehr_patients_v3')) {
+        patients = JSON.parse(localStorage.getItem('ehr_patients_v3'));
     } else {
         patients = [
             { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
@@ -90,7 +91,7 @@ function initData() {
 }
 
 function saveData() {
-    localStorage.setItem('ehr_patients_v2', JSON.stringify(patients));
+    localStorage.setItem('ehr_patients_v3', JSON.stringify(patients));
     localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
     localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
     localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
@@ -106,7 +107,7 @@ function updateDashboards() {
 
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => p.vitals && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
+    let criticalPatients = patients.filter(p => p.vitals && p.vitals.spo2 !== '-' && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
     
     const badge = document.getElementById('notification-badge');
     if (badge) {
@@ -119,7 +120,7 @@ function updateDashboards() {
 function showNotifications() {
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => p.vitals && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
+    let criticalPatients = patients.filter(p => p.vitals && p.vitals.spo2 !== '-' && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
     
     const list = document.getElementById('notification-list');
     list.innerHTML = '';
@@ -198,7 +199,7 @@ function populateRecentPatientsWidget() {
         let status = 'Stable';
         let statusClass = 'status-completed'; 
         
-        if(p.vitals && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)) { 
+        if(p.vitals && p.vitals.spo2 !== '-' && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)) { 
             status = 'Critical'; 
             statusClass = 'status-critical'; 
         } else if(p.complaint.toLowerCase().includes('checkup') || p.complaint.toLowerCase().includes('fever')) { 
@@ -239,8 +240,9 @@ function savePatient(e) {
     e.preventDefault();
     const idField = document.getElementById('p-id').value;
     
-    let initialVitals = { bpSys: 120, bpDia: 80, hr: 75, temp: 36.8, spo2: 98, resp: 16, bmi: 22.0 };
-    let initialRecord = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: getExactTimestamp() };
+    // IMPORTANT: Empty Defaults for New Patients!
+    let initialVitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
+    let initialRecord = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
     
     const newPatient = {
         id: idField ? idField : 'P00' + (patients.length + 1),
@@ -259,7 +261,7 @@ function savePatient(e) {
         complaint: document.getElementById('p-complaint').value,
         date: new Date().toISOString().split('T')[0],
         vitals: initialVitals,
-        vitalsHistory: [{ id: Date.now(), date: new Date().toISOString().split('T')[0], ...initialVitals }],
+        vitalsHistory: [],
         record: initialRecord
     };
 
@@ -316,7 +318,7 @@ function populateTable() {
     patients.forEach(patient => {
         let v = patient.vitals;
         let isRowCritical = false;
-        if (v && (v.spo2 < 90 || v.bpSys > 160 || v.bpSys < 90 || v.hr > 120 || v.hr < 50 || v.temp > 37.5)) {
+        if (v && v.spo2 !== '-' && (v.spo2 < 90 || v.bpSys > 160 || v.bpSys < 90 || v.hr > 120 || v.hr < 50 || v.temp > 37.5)) {
             isRowCritical = true;
         }
 
@@ -461,22 +463,8 @@ function openModal(patientId) {
     const p = patients.find(x => x.id === patientId);
     if(!p) return;
 
-    if (!p.vitalsHistory || p.vitalsHistory.length === 0) {
-        let v = p.vitals;
-        p.vitalsHistory = [
-            { id: Date.now() - 400000, date: '2024-01-10', bpSys: v.bpSys-20, bpDia: v.bpDia-10, hr: v.hr+5, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
-            { id: Date.now() - 300000, date: '2024-01-28', bpSys: v.bpSys-10, bpDia: v.bpDia-5, hr: v.hr-2, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
-            { id: Date.now() - 200000, date: '2024-02-14', bpSys: v.bpSys+5, bpDia: v.bpDia+2, hr: v.hr+8, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
-            { id: Date.now() - 100000, date: '2024-03-05', bpSys: v.bpSys-5, bpDia: v.bpDia-3, hr: v.hr-4, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
-            { id: Date.now(), date: new Date().toISOString().split('T')[0], bpSys: v.bpSys, bpDia: v.bpDia, hr: v.hr, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi }
-        ];
-        saveData();
-    }
-
-    if (!p.record) {
-        p.record = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: getExactTimestamp() };
-        saveData();
-    }
+    if (!p.vitalsHistory) p.vitalsHistory = [];
+    if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
 
     document.getElementById('modal-patient-name').innerText = p.name;
     document.getElementById('modal-patient-info').innerText = `${p.id} • ${p.age} yrs • ${p.sex} • Room: ${p.room}`;
@@ -498,13 +486,15 @@ function openModal(patientId) {
     document.getElementById('modal-complaint').innerText = p.complaint;
 
     let v = p.vitals;
-    let bpClass = (v.bpSys > 160 || v.bpSys < 90) ? 'red-alert-card' : '';
-    let hrClass = (v.hr > 120 || v.hr < 50) ? 'red-alert-card' : '';
-    let tempClass = (v.temp > 37.5) ? 'red-alert-card' : '';
-    let spo2Class = (v.spo2 < 90) ? 'red-alert-card' : '';
+    let bpClass = (v.bpSys !== '-' && (v.bpSys > 160 || v.bpSys < 90)) ? 'red-alert-card' : '';
+    let hrClass = (v.hr !== '-' && (v.hr > 120 || v.hr < 50)) ? 'red-alert-card' : '';
+    let tempClass = (v.temp !== '-' && v.temp > 37.5) ? 'red-alert-card' : '';
+    let spo2Class = (v.spo2 !== '-' && v.spo2 < 90) ? 'red-alert-card' : '';
+
+    let bpDisplay = v.bpSys === '-' ? '- / -' : `${v.bpSys}/${v.bpDia}`;
 
     document.getElementById('latest-vitals-container').innerHTML = `
-        <div class="vital-box ${bpClass}"><h4>Blood Pressure</h4><h2>${v.bpSys}/${v.bpDia} <small>mmHg</small></h2></div>
+        <div class="vital-box ${bpClass}"><h4>Blood Pressure</h4><h2>${bpDisplay} <small>mmHg</small></h2></div>
         <div class="vital-box ${hrClass}"><h4>Heart Rate</h4><h2>${v.hr} <small>bpm</small></h2></div>
         <div class="vital-box ${tempClass}"><h4>Temperature</h4><h2>${v.temp}° <small>C</small></h2></div>
         <div class="vital-box ${spo2Class}"><h4>SpO2</h4><h2>${v.spo2} <small>%</small></h2></div>
@@ -516,7 +506,7 @@ function openModal(patientId) {
     let formattedAdmission = `${parseInt(dParts[1])}/${parseInt(dParts[2])}/${dParts[0]}`;
     
     document.getElementById('rec-admission').innerText = formattedAdmission;
-    document.getElementById('rec-timestamp').innerText = p.record.timestamp || 'Not recorded';
+    document.getElementById('rec-timestamp').innerText = p.record.timestamp || '-';
     document.getElementById('rec-neuro').innerText = p.record.neuro;
     document.getElementById('rec-resp').innerText = p.record.resp;
     document.getElementById('rec-skin').innerText = p.record.skin;
@@ -594,13 +584,14 @@ function openAddVitalsModal(recordId = null) {
         document.getElementById('vitals-modal-title').innerText = "Record New Vitals";
         document.getElementById('v-id').value = '';
         document.getElementById('v-date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('v-bpsys').value = p.vitals.bpSys;
-        document.getElementById('v-bpdia').value = p.vitals.bpDia;
-        document.getElementById('v-hr').value = p.vitals.hr;
-        document.getElementById('v-temp').value = p.vitals.temp;
-        document.getElementById('v-spo2').value = p.vitals.spo2;
-        document.getElementById('v-resp').value = p.vitals.resp;
-        document.getElementById('v-bmi').value = p.vitals.bmi;
+        // Only pre-fill if it's a real number, otherwise leave blank for typing
+        document.getElementById('v-bpsys').value = p.vitals.bpSys === '-' ? '' : p.vitals.bpSys;
+        document.getElementById('v-bpdia').value = p.vitals.bpDia === '-' ? '' : p.vitals.bpDia;
+        document.getElementById('v-hr').value = p.vitals.hr === '-' ? '' : p.vitals.hr;
+        document.getElementById('v-temp').value = p.vitals.temp === '-' ? '' : p.vitals.temp;
+        document.getElementById('v-spo2').value = p.vitals.spo2 === '-' ? '' : p.vitals.spo2;
+        document.getElementById('v-resp').value = p.vitals.resp === '-' ? '' : p.vitals.resp;
+        document.getElementById('v-bmi').value = p.vitals.bmi === '-' ? '' : p.vitals.bmi;
     }
 
     document.getElementById('add-vitals-modal').style.display = 'flex';
@@ -615,7 +606,6 @@ function saveVitals(e) {
     const index = patients.findIndex(p => p.id === currentViewedPatientId);
     if(index === -1) return;
 
-    // Track active tab to seamlessly return there
     let activeTabId = 'vitals';
     document.querySelectorAll('.tab-content').forEach(tab => {
         if(tab.classList.contains('active')) activeTabId = tab.id.replace('tab-', '');
@@ -664,7 +654,7 @@ function deleteVitalRecord(recordId) {
         p.vitalsHistory.sort((a,b) => new Date(b.date) - new Date(a.date));
         p.vitals = p.vitalsHistory[0];
     } else {
-        p.vitals = { bpSys: 0, bpDia: 0, hr: 0, temp: 0, spo2: 0, resp: 0, bmi: 0 };
+        p.vitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
     }
     
     saveData();
@@ -683,6 +673,8 @@ function switchTab(tabName) {
 function renderChart(p) {
     const ctx = document.getElementById('vitalsChart').getContext('2d');
     if(vitalsChartInstance) vitalsChartInstance.destroy();
+
+    if(!p.vitalsHistory || p.vitalsHistory.length === 0) return;
 
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#71717a';
@@ -712,6 +704,11 @@ function populateHistoryTable(p) {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = '';
     
+    if(!p.vitalsHistory || p.vitalsHistory.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-light); font-style: italic;">No vitals recorded yet.</td></tr>`;
+        return;
+    }
+
     let sortedHistory = [...p.vitalsHistory].sort((a,b) => new Date(b.date) - new Date(a.date));
 
     sortedHistory.forEach((r, index) => {
