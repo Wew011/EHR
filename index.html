@@ -350,6 +350,73 @@
         </div>
     </div>
 
+    <!-- UPDATE CLINICAL RECORD MODAL -->
+    <div class="modal-overlay" id="update-record-modal" style="z-index: 1050;">
+        <div class="modal-content" style="width: 500px;">
+            <div class="close-modal" onclick="closeRecordModal()"><i class="fas fa-times"></i></div>
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0; margin-bottom: 20px;">
+                <div>
+                    <h2 style="font-size: 22px;"><i class="fas fa-clipboard-list" style="color: var(--primary); margin-right: 10px;"></i> Update Record</h2>
+                    <p style="color: var(--text-light); font-size: 14px; font-weight: 500;">Clinical assessment details.</p>
+                </div>
+            </div>
+            <form onsubmit="savePatientRecord(event)">
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="input-group">
+                        <label>Neurological Status</label>
+                        <select id="ur-neuro" required>
+                            <option>Alert</option>
+                            <option>Lethargic</option>
+                            <option>Obtunded</option>
+                            <option>Comatose</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Respiratory Pattern</label>
+                        <select id="ur-resp" required>
+                            <option>Normal/Regular</option>
+                            <option>Shallow</option>
+                            <option>Labored</option>
+                            <option>Tachypnea</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Skin Color</label>
+                        <select id="ur-skin" required>
+                            <option>Normal</option>
+                            <option>Pale</option>
+                            <option>Jaundiced</option>
+                            <option>Cyanotic</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Bowel Sounds</label>
+                        <select id="ur-bowel" required>
+                            <option>Normal Active</option>
+                            <option>Hypoactive</option>
+                            <option>Hyperactive</option>
+                            <option>Absent</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Edema</label>
+                        <select id="ur-edema" required>
+                            <option>None</option>
+                            <option>1+ Pitting</option>
+                            <option>2+ Pitting</option>
+                            <option>3+ Pitting</option>
+                            <option>4+ Pitting</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button type="submit" class="submit-btn" style="margin-top: 0; flex: 1;">Save Assessment</button>
+                    <button type="button" class="back-btn" style="flex: 1; padding: 15px; border-radius: var(--radius-md);" onclick="closeRecordModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- ADD APPOINTMENT MODAL -->
     <div class="modal-overlay" id="add-appointment-modal" style="z-index: 1050;">
         <div class="modal-content" style="width: 500px;">
@@ -434,7 +501,7 @@
         </div>
     </div>
 
-    <!-- Patient Details Modal -->
+    <!-- Patient Details Main Modal -->
     <div class="modal-overlay" id="patient-modal">
         <div class="modal-content">
             <div class="close-modal" onclick="closeModal()"><i class="fas fa-times"></i></div>
@@ -450,9 +517,11 @@
                 </div>
             </div>
 
+            <!-- MODIFIED: Added 3rd Tab -->
             <div class="modal-tabs">
                 <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
                 <button class="tab-btn" onclick="switchTab('vitals')">Vitals History</button>
+                <button class="tab-btn" onclick="switchTab('record')">Patient Record</button>
             </div>
 
             <div id="tab-overview" class="tab-content active">
@@ -477,6 +546,21 @@
                     <thead><tr><th>Date Record</th><th>Systolic BP</th><th>Diastolic BP</th><th>Heart Rate</th><th>Actions</th></tr></thead>
                     <tbody id="history-tbody"></tbody>
                 </table>
+            </div>
+
+            <!-- NEW: Patient Record Tab Content -->
+            <div id="tab-record" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 class="tab-title" style="margin-bottom: 0;">Clinical Assessment</h3>
+                    <button class="btn-primary" onclick="openRecordModal()" style="width: auto; padding: 10px 15px; font-size: 13px;"><i class="fas fa-edit"></i> Update Record</button>
+                </div>
+                <div class="info-grid">
+                    <div class="info-card"><div class="card-label">Neurological Status</div><div class="card-value" id="rec-neuro"></div></div>
+                    <div class="info-card"><div class="card-label">Respiratory Pattern</div><div class="card-value" id="rec-resp"></div></div>
+                    <div class="info-card"><div class="card-label">Skin Color</div><div class="card-value" id="rec-skin"></div></div>
+                    <div class="info-card"><div class="card-label">Bowel Sounds</div><div class="card-value" id="rec-bowel"></div></div>
+                    <div class="info-card"><div class="card-label">Edema</div><div class="card-value" id="rec-edema"></div></div>
+                </div>
             </div>
 
         </div>
