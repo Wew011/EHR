@@ -41,7 +41,6 @@ let pharmacy = [];
 let currentViewedPatientId = null; 
 
 function initData() {
-    // Upgraded to v3 to ensure empty default states work perfectly
     if (localStorage.getItem('ehr_patients_v3')) {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v3'));
     } else {
@@ -240,7 +239,6 @@ function savePatient(e) {
     e.preventDefault();
     const idField = document.getElementById('p-id').value;
     
-    // IMPORTANT: Empty Defaults for New Patients!
     let initialVitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
     let initialRecord = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
     
@@ -528,6 +526,9 @@ function openRecordModal() {
     const p = patients.find(x => x.id === currentViewedPatientId);
     if(!p) return;
 
+    let currentTs = (p.record.timestamp && p.record.timestamp !== '-') ? p.record.timestamp : getExactTimestamp();
+    
+    document.getElementById('ur-timestamp').value = currentTs;
     document.getElementById('ur-neuro').value = p.record.neuro;
     document.getElementById('ur-resp').value = p.record.resp;
     document.getElementById('ur-skin').value = p.record.skin;
@@ -552,7 +553,7 @@ function savePatientRecord(e) {
         skin: document.getElementById('ur-skin').value,
         bowel: document.getElementById('ur-bowel').value,
         edema: document.getElementById('ur-edema').value,
-        timestamp: getExactTimestamp() 
+        timestamp: document.getElementById('ur-timestamp').value 
     };
 
     saveData();
@@ -584,7 +585,6 @@ function openAddVitalsModal(recordId = null) {
         document.getElementById('vitals-modal-title').innerText = "Record New Vitals";
         document.getElementById('v-id').value = '';
         document.getElementById('v-date').value = new Date().toISOString().split('T')[0];
-        // Only pre-fill if it's a real number, otherwise leave blank for typing
         document.getElementById('v-bpsys').value = p.vitals.bpSys === '-' ? '' : p.vitals.bpSys;
         document.getElementById('v-bpdia').value = p.vitals.bpDia === '-' ? '' : p.vitals.bpDia;
         document.getElementById('v-hr').value = p.vitals.hr === '-' ? '' : p.vitals.hr;
