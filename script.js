@@ -17,6 +17,25 @@ function getExactTimestamp() {
     return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
 }
 
+// --- Medical Logic Engine ---
+// This function strictly determines if a patient should trigger a red notification/alert
+function isPatientCritical(p) {
+    if (!p) return false;
+    let v = p.vitals || {};
+    let r = p.record || {};
+    
+    // Check for abnormal vital signs
+    let vitalsBad = (v.spo2 !== '-' && v.spo2 < 90) || 
+                    (v.bpSys !== '-' && (v.bpSys > 160 || v.bpSys < 90)) ||
+                    (v.hr !== '-' && (v.hr > 120 || v.hr < 50)) ||
+                    (v.temp !== '-' && (v.temp > 38 || v.temp < 35));
+                    
+    // Check for abnormal neurological status (Anything other than normal 'Alert' or unrecorded '-')
+    let neuroBad = r.neuro && r.neuro !== '-' && r.neuro !== 'Alert';
+
+    return vitalsBad || neuroBad;
+}
+
 // --- Navigation Logic ---
 function login() {
     document.getElementById('login-screen').style.display = 'none';
@@ -52,6 +71,12 @@ function initData() {
         ];
         saveData();
     }
+
+    // Safety fallback: Ensure all loaded patients have a valid record object to prevent crashes
+    patients.forEach(p => {
+        if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
+        if (!p.vitals) p.vitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
+    });
 
     if (localStorage.getItem('ehr_appointments_v2')) {
         appointments = JSON.parse(localStorage.getItem('ehr_appointments_v2'));
@@ -107,7 +132,9 @@ function updateDashboards() {
 
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => p.vitals && p.vitals.spo2 !== '-' && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
+    
+    // Utilize the new robust medical logic engine to find critical patients
+    let criticalPatients = patients.filter(p => isPatientCritical(p)).length;
     
     const badge = document.getElementById('notification-badge');
     if (badge) {
@@ -120,7 +147,7 @@ function updateDashboards() {
 function showNotifications() {
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => p.vitals && p.vitals.spo2 !== '-' && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
+    let criticalPatients = patients.filter(p => isPatientCritical(p)).length;
     
     const list = document.getElementById('notification-list');
     list.innerHTML = '';
@@ -136,7 +163,7 @@ function showNotifications() {
             list.innerHTML += `
                 <div class="notif-item" style="background: #fff1f2; border-color: #fecaca;">
                     <div class="notif-icon notif-danger"><i class="fas fa-exclamation-triangle"></i></div>
-                    <div class="notif-content"><h4>Critical Patients Alert</h4><p>${criticalPatients} Patient(s) flagged as CRITICAL. Check vitals immediately.</p></div>
+                    <div class="notif-content"><h4>Critical Patients Alert</h4><p>${criticalPatients} Patient(s) flagged as CRITICAL (Check abnormal vitals or neurological status immediately).</p></div>
                 </div>`;
         }
         if (pendingAppts > 0) {
@@ -199,8 +226,9 @@ function populateRecentPatientsWidget() {
         let status = 'Stable';
         let statusClass = 'status-completed'; 
         
-        if(p.vitals && p.vitals.spo2 !== '-' && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)) { 
-            status = 'Critical'; 
+        // Use robust medical engine
+        if(isPatientCritical(p)) { 
+            status = 'Critical Alert'; 
             statusClass = 'status-critical'; 
         } else if(p.complaint.toLowerCase().includes('checkup') || p.complaint.toLowerCase().includes('fever')) { 
             status = 'Follow-up'; 
@@ -209,14 +237,19 @@ function populateRecentPatientsWidget() {
 
         let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
         let displayTime = mockTimes[index] || '12:00 PM';
+        let neuroText = p.record && p.record.neuro ? p.record.neuro : '-';
         
+        // Check if neuro needs to be highlighted red inside the small text
+        let neuroStyle = (neuroText !== '-' && neuroText !== 'Alert') ? 'color: #e11d48; font-weight: 800;' : 'color: var(--primary); font-weight: 600;';
+
         list.innerHTML += `
             <div class="recent-list-item">
                 <div class="r-patient-info">
                     <div class="r-avatar">${initials}</div>
                     <div>
                         <h4>${p.name}</h4>
-                        <p>${p.complaint} • Age ${p.age}</p>
+                        <p style="margin-bottom: 2px;">${p.complaint} • Age ${p.age}</p>
+                        <span style="font-size: 11px; ${neuroStyle} background: var(--primary-light); padding: 2px 6px; border-radius: 4px;">Neuro: ${neuroText}</span>
                     </div>
                 </div>
                 <div class="r-patient-status">
@@ -270,8 +303,8 @@ function savePatient(e) {
 
     if (idField) {
         const index = patients.findIndex(p => p.id === idField);
-        newPatient.vitals = patients[index].vitals; 
-        newPatient.vitalsHistory = patients[index].vitalsHistory; 
+        newPatient.vitals = patients[index].vitals || initialVitals; 
+        newPatient.vitalsHistory = patients[index].vitalsHistory || []; 
         newPatient.record = patients[index].record || initialRecord;
         patients[index] = newPatient;
         alert('Patient updated successfully!');
@@ -320,14 +353,10 @@ function populateTable() {
     tbody.innerHTML = '';
 
     patients.forEach(patient => {
-        let v = patient.vitals;
-        let isRowCritical = false;
-        if (v && v.spo2 !== '-' && (v.spo2 < 90 || v.bpSys > 160 || v.bpSys < 90 || v.hr > 120 || v.hr < 50 || v.temp > 37.5)) {
-            isRowCritical = true;
-        }
-
+        let isRowCritical = isPatientCritical(patient);
         let rowClass = isRowCritical ? 'critical-row' : '';
-        let rowHtml = `
+        
+        tbody.innerHTML += `
             <tr class="${rowClass}">
                 <td>
                     <img src="https://ui-avatars.com/api/?name=${patient.name}&background=831843&color=fff&rounded=true&size=40" style="vertical-align: middle; margin-right: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
@@ -347,7 +376,6 @@ function populateTable() {
                 </td>
             </tr>
         `;
-        tbody.innerHTML += rowHtml;
     });
 }
 
@@ -489,10 +517,10 @@ function openModal(patientId) {
     document.getElementById('modal-diet').innerText = p.diet;
     document.getElementById('modal-complaint').innerText = p.complaint;
 
-    let v = p.vitals;
+    let v = p.vitals || {};
     let bpClass = (v.bpSys !== '-' && (v.bpSys > 160 || v.bpSys < 90)) ? 'red-alert-card' : '';
     let hrClass = (v.hr !== '-' && (v.hr > 120 || v.hr < 50)) ? 'red-alert-card' : '';
-    let tempClass = (v.temp !== '-' && v.temp > 37.5) ? 'red-alert-card' : '';
+    let tempClass = (v.temp !== '-' && (v.temp > 38 || v.temp < 35)) ? 'red-alert-card' : '';
     let spo2Class = (v.spo2 !== '-' && v.spo2 < 90) ? 'red-alert-card' : '';
 
     let bpDisplay = v.bpSys === '-' ? '- / -' : `${v.bpSys}/${v.bpDia}`;
@@ -531,9 +559,7 @@ function openRecordModal() {
 
     let currentTs = (p.record.timestamp && p.record.timestamp !== '-') ? p.record.timestamp : getExactTimestamp();
     
-    // Set the Admission Date in the Update modal
     document.getElementById('ur-admission').value = p.date || '';
-    
     document.getElementById('ur-timestamp').value = currentTs;
     document.getElementById('ur-neuro').value = p.record.neuro;
     document.getElementById('ur-resp').value = p.record.resp;
@@ -553,7 +579,6 @@ function savePatientRecord(e) {
     const index = patients.findIndex(p => p.id === currentViewedPatientId);
     if(index === -1) return;
 
-    // Save the new Admission Date
     patients[index].date = document.getElementById('ur-admission').value;
 
     patients[index].record = {
