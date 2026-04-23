@@ -39,9 +39,9 @@ function initData() {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v2'));
     } else {
         patients = [
-            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 } }, 
-            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '2024-04-18', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 } },
-            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '2024-04-10', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 } }
+            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' } }, 
+            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '2024-04-18', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting' } },
+            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '2024-04-10', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' } }
         ];
         saveData();
     }
@@ -233,8 +233,8 @@ function savePatient(e) {
     e.preventDefault();
     const idField = document.getElementById('p-id').value;
     
-    // Default vitals for a new patient
     let initialVitals = { bpSys: 120, bpDia: 80, hr: 75, temp: 36.8, spo2: 98, resp: 16, bmi: 22.0 };
+    let initialRecord = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' };
     
     const newPatient = {
         id: idField ? idField : 'P00' + (patients.length + 1),
@@ -253,13 +253,15 @@ function savePatient(e) {
         complaint: document.getElementById('p-complaint').value,
         date: new Date().toISOString().split('T')[0],
         vitals: initialVitals,
-        vitalsHistory: [{ id: Date.now(), date: new Date().toISOString().split('T')[0], ...initialVitals }]
+        vitalsHistory: [{ id: Date.now(), date: new Date().toISOString().split('T')[0], ...initialVitals }],
+        record: initialRecord
     };
 
     if (idField) {
         const index = patients.findIndex(p => p.id === idField);
         newPatient.vitals = patients[index].vitals; 
         newPatient.vitalsHistory = patients[index].vitalsHistory; 
+        newPatient.record = patients[index].record || initialRecord;
         patients[index] = newPatient;
         alert('Patient updated successfully!');
     } else {
@@ -453,7 +455,6 @@ function openModal(patientId) {
     const p = patients.find(x => x.id === patientId);
     if(!p) return;
 
-    // --- Dynamic Data Migration for existing local storage data ---
     if (!p.vitalsHistory || p.vitalsHistory.length === 0) {
         let v = p.vitals;
         p.vitalsHistory = [
@@ -465,7 +466,11 @@ function openModal(patientId) {
         ];
         saveData();
     }
-    // ---------------------------------------------------------------
+
+    if (!p.record) {
+        p.record = { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None' };
+        saveData();
+    }
 
     document.getElementById('modal-patient-name').innerText = p.name;
     document.getElementById('modal-patient-info').innerText = `${p.id} • ${p.age} yrs • ${p.sex} • Room: ${p.room}`;
@@ -501,6 +506,13 @@ function openModal(patientId) {
         <div class="vital-box"><h4>BMI</h4><h2>${v.bmi} <small>Normal</small></h2></div>
     `;
 
+    // Populate Patient Record Tab
+    document.getElementById('rec-neuro').innerText = p.record.neuro;
+    document.getElementById('rec-resp').innerText = p.record.resp;
+    document.getElementById('rec-skin').innerText = p.record.skin;
+    document.getElementById('rec-bowel').innerText = p.record.bowel;
+    document.getElementById('rec-edema').innerText = p.record.edema;
+
     renderChart(p);
     populateHistoryTable(p);
 
@@ -510,13 +522,52 @@ function openModal(patientId) {
 
 function closeModal() { document.getElementById('patient-modal').style.display = 'none'; }
 
+// --- Patient Record Update Logic ---
+function openRecordModal() {
+    if(!currentViewedPatientId) return;
+    const p = patients.find(x => x.id === currentViewedPatientId);
+    if(!p) return;
+
+    document.getElementById('ur-neuro').value = p.record.neuro;
+    document.getElementById('ur-resp').value = p.record.resp;
+    document.getElementById('ur-skin').value = p.record.skin;
+    document.getElementById('ur-bowel').value = p.record.bowel;
+    document.getElementById('ur-edema').value = p.record.edema;
+
+    document.getElementById('update-record-modal').style.display = 'flex';
+}
+
+function closeRecordModal() { document.getElementById('update-record-modal').style.display = 'none'; }
+
+function savePatientRecord(e) {
+    e.preventDefault();
+    if(!currentViewedPatientId) return;
+    
+    const index = patients.findIndex(p => p.id === currentViewedPatientId);
+    if(index === -1) return;
+
+    patients[index].record = {
+        neuro: document.getElementById('ur-neuro').value,
+        resp: document.getElementById('ur-resp').value,
+        skin: document.getElementById('ur-skin').value,
+        bowel: document.getElementById('ur-bowel').value,
+        edema: document.getElementById('ur-edema').value
+    };
+
+    saveData();
+    closeRecordModal();
+    openModal(currentViewedPatientId);
+    switchTab('record'); // Stay on the same tab
+    alert('Patient record updated successfully!');
+}
+
+// --- Vitals History Update Logic ---
 function openAddVitalsModal(recordId = null) {
     if(!currentViewedPatientId) return;
     const p = patients.find(x => x.id === currentViewedPatientId);
     if(!p) return;
     
     if (recordId) {
-        // Edit Mode
         const r = p.vitalsHistory.find(v => v.id === recordId);
         document.getElementById('vitals-modal-title').innerText = "Edit Vitals Record";
         document.getElementById('v-id').value = r.id;
@@ -529,7 +580,6 @@ function openAddVitalsModal(recordId = null) {
         document.getElementById('v-resp').value = r.resp;
         document.getElementById('v-bmi').value = r.bmi;
     } else {
-        // Add Mode
         document.getElementById('vitals-modal-title').innerText = "Record New Vitals";
         document.getElementById('v-id').value = '';
         document.getElementById('v-date').value = new Date().toISOString().split('T')[0];
@@ -569,24 +619,20 @@ function saveVitals(e) {
     };
 
     if (vId) {
-        // Find and Edit existing
         let rIndex = p.vitalsHistory.findIndex(r => r.id == vId);
-        if(rIndex > -1) {
-            p.vitalsHistory[rIndex] = { id: parseInt(vId), ...newVitalData };
-        }
+        if(rIndex > -1) p.vitalsHistory[rIndex] = { id: parseInt(vId), ...newVitalData };
     } else {
-        // Push New
         p.vitalsHistory.push({ id: Date.now(), ...newVitalData });
     }
 
-    // Sort descending by date so index [0] is always the latest
     p.vitalsHistory.sort((a,b) => new Date(b.date) - new Date(a.date));
-    p.vitals = p.vitalsHistory[0]; // Update main vitals overview
+    p.vitals = p.vitalsHistory[0]; 
 
     saveData();
     populateTable(); 
     closeAddVitalsModal();
     openModal(currentViewedPatientId); 
+    switchTab('vitals');
 }
 
 function deleteVitalRecord(recordId) {
@@ -601,13 +647,13 @@ function deleteVitalRecord(recordId) {
         p.vitalsHistory.sort((a,b) => new Date(b.date) - new Date(a.date));
         p.vitals = p.vitalsHistory[0];
     } else {
-        // Fallback if they delete everything
         p.vitals = { bpSys: 0, bpDia: 0, hr: 0, temp: 0, spo2: 0, resp: 0, bmi: 0 };
     }
     
     saveData();
     populateTable();
     openModal(currentViewedPatientId);
+    switchTab('vitals');
 }
 
 function switchTab(tabName) {
@@ -624,7 +670,6 @@ function renderChart(p) {
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#71717a';
 
-    // Sort ascending for chronological chart view (Left to Right)
     let chartData = [...p.vitalsHistory].sort((a,b) => new Date(a.date) - new Date(b.date));
 
     vitalsChartInstance = new Chart(ctx, {
@@ -650,7 +695,6 @@ function populateHistoryTable(p) {
     const tbody = document.getElementById('history-tbody');
     tbody.innerHTML = '';
     
-    // Sort descending for chronological list (Newest Top)
     let sortedHistory = [...p.vitalsHistory].sort((a,b) => new Date(b.date) - new Date(a.date));
 
     sortedHistory.forEach((r, index) => {
