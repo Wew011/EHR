@@ -32,6 +32,7 @@ let patients = [];
 let appointments = [];
 let labs = [];
 let pharmacy = [];
+let currentViewedPatientId = null; 
 
 function initData() {
     if (localStorage.getItem('ehr_patients_v2')) {
@@ -99,7 +100,7 @@ function updateDashboards() {
 
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => p.vitals.spo2 < 90 || p.vitals.bpSys > 160).length;
+    let criticalPatients = patients.filter(p => p.vitals && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
     
     const badge = document.getElementById('notification-badge');
     if (badge) {
@@ -112,7 +113,7 @@ function updateDashboards() {
 function showNotifications() {
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => p.vitals.spo2 < 90 || p.vitals.bpSys > 160).length;
+    let criticalPatients = patients.filter(p => p.vitals && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)).length;
     
     const list = document.getElementById('notification-list');
     list.innerHTML = '';
@@ -191,7 +192,7 @@ function populateRecentPatientsWidget() {
         let status = 'Stable';
         let statusClass = 'status-completed'; 
         
-        if(p.vitals.spo2 < 90 || p.vitals.bpSys > 160) { 
+        if(p.vitals && (p.vitals.spo2 < 90 || p.vitals.bpSys > 160)) { 
             status = 'Critical'; 
             statusClass = 'status-critical'; 
         } else if(p.complaint.toLowerCase().includes('checkup') || p.complaint.toLowerCase().includes('fever')) { 
@@ -231,6 +232,10 @@ function prepareNewPatient() {
 function savePatient(e) {
     e.preventDefault();
     const idField = document.getElementById('p-id').value;
+    
+    // Default vitals for a new patient
+    let initialVitals = { bpSys: 120, bpDia: 80, hr: 75, temp: 36.8, spo2: 98, resp: 16, bmi: 22.0 };
+    
     const newPatient = {
         id: idField ? idField : 'P00' + (patients.length + 1),
         name: document.getElementById('p-name').value,
@@ -247,12 +252,14 @@ function savePatient(e) {
         doctor: document.getElementById('p-doc').value,
         complaint: document.getElementById('p-complaint').value,
         date: new Date().toISOString().split('T')[0],
-        vitals: { bpSys: 120, bpDia: 80, hr: 75, temp: 36.8, spo2: 98, resp: 16, bmi: 22.0 }
+        vitals: initialVitals,
+        vitalsHistory: [{ id: Date.now(), date: new Date().toISOString().split('T')[0], ...initialVitals }]
     };
 
     if (idField) {
         const index = patients.findIndex(p => p.id === idField);
         newPatient.vitals = patients[index].vitals; 
+        newPatient.vitalsHistory = patients[index].vitalsHistory; 
         patients[index] = newPatient;
         alert('Patient updated successfully!');
     } else {
@@ -301,7 +308,7 @@ function populateTable() {
     patients.forEach(patient => {
         let v = patient.vitals;
         let isRowCritical = false;
-        if (v.spo2 < 90 || v.bpSys > 160 || v.bpSys < 90 || v.hr > 120 || v.hr < 50 || v.temp > 37.5) {
+        if (v && (v.spo2 < 90 || v.bpSys > 160 || v.bpSys < 90 || v.hr > 120 || v.hr < 50 || v.temp > 37.5)) {
             isRowCritical = true;
         }
 
@@ -331,13 +338,18 @@ function populateTable() {
 }
 
 // --- APPOINTMENTS CRUD ---
-function addAppointment() {
-    let name = prompt("Enter Patient Name for Appointment:");
-    if (!name) return;
-    let type = prompt("Enter Visit Type (e.g., Checkup, Surgery):", "Checkup");
-    
+function openAppointmentModal() {
+    document.getElementById('new-appt-name').value = '';
+    document.getElementById('new-appt-type').value = 'Checkup';
+    document.getElementById('add-appointment-modal').style.display = 'flex';
+}
+function closeAppointmentModal() { document.getElementById('add-appointment-modal').style.display = 'none'; }
+function saveAppointment(e) {
+    e.preventDefault();
+    let name = document.getElementById('new-appt-name').value;
+    let type = document.getElementById('new-appt-type').value;
     appointments.push({ id: Date.now(), name: name, time: 'Pending Schedule', doc: 'Unassigned', type: type, status: 'pending' });
-    saveData(); populateAppointments();
+    saveData(); populateAppointments(); closeAppointmentModal();
     showSection('appointments-section', document.querySelectorAll('.nav-links li')[2]);
 }
 function cycleApptStatus(id) {
@@ -363,12 +375,18 @@ function populateAppointments() {
 }
 
 // --- LABS CRUD ---
-function addLab() {
-    let name = prompt("Enter Patient Name:");
-    if (!name) return;
-    let test = prompt("Enter Lab Test Type:");
+function openLabModal() {
+    document.getElementById('new-lab-name').value = '';
+    document.getElementById('new-lab-test').value = '';
+    document.getElementById('add-lab-modal').style.display = 'flex';
+}
+function closeLabModal() { document.getElementById('add-lab-modal').style.display = 'none'; }
+function saveLab(e) {
+    e.preventDefault();
+    let name = document.getElementById('new-lab-name').value;
+    let test = document.getElementById('new-lab-test').value;
     labs.push({ id: Date.now(), name: name, test: test, date: new Date().toISOString().split('T')[0], status: 'pending' });
-    saveData(); populateLabs();
+    saveData(); populateLabs(); closeLabModal();
     showSection('labs-section', document.querySelectorAll('.nav-links li')[3]);
 }
 function cycleLabStatus(id) {
@@ -393,12 +411,18 @@ function populateLabs() {
 }
 
 // --- PHARMACY CRUD ---
-function addMeds() {
-    let name = prompt("Enter Patient Name:");
-    if (!name) return;
-    let med = prompt("Enter Medication & Dosage:");
+function openPharmacyModal() {
+    document.getElementById('new-pharm-name').value = '';
+    document.getElementById('new-pharm-med').value = '';
+    document.getElementById('add-pharmacy-modal').style.display = 'flex';
+}
+function closePharmacyModal() { document.getElementById('add-pharmacy-modal').style.display = 'none'; }
+function savePharmacy(e) {
+    e.preventDefault();
+    let name = document.getElementById('new-pharm-name').value;
+    let med = document.getElementById('new-pharm-med').value;
     pharmacy.push({ id: Date.now(), name: name, meds: med, doc: 'Unassigned', status: 'pending' });
-    saveData(); populatePharmacy();
+    saveData(); populatePharmacy(); closePharmacyModal();
     showSection('pharmacy-section', document.querySelectorAll('.nav-links li')[4]);
 }
 function cycleMedStatus(id) {
@@ -421,12 +445,27 @@ function populatePharmacy() {
     });
 }
 
-// --- Modal & Chart Logic ---
+// --- Patient Modal & Dynamic Vitals Logic ---
 let vitalsChartInstance = null;
 
 function openModal(patientId) {
+    currentViewedPatientId = patientId; 
     const p = patients.find(x => x.id === patientId);
     if(!p) return;
+
+    // --- Dynamic Data Migration for existing local storage data ---
+    if (!p.vitalsHistory || p.vitalsHistory.length === 0) {
+        let v = p.vitals;
+        p.vitalsHistory = [
+            { id: Date.now() - 400000, date: '2024-01-10', bpSys: v.bpSys-20, bpDia: v.bpDia-10, hr: v.hr+5, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
+            { id: Date.now() - 300000, date: '2024-01-28', bpSys: v.bpSys-10, bpDia: v.bpDia-5, hr: v.hr-2, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
+            { id: Date.now() - 200000, date: '2024-02-14', bpSys: v.bpSys+5, bpDia: v.bpDia+2, hr: v.hr+8, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
+            { id: Date.now() - 100000, date: '2024-03-05', bpSys: v.bpSys-5, bpDia: v.bpDia-3, hr: v.hr-4, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi },
+            { id: Date.now(), date: new Date().toISOString().split('T')[0], bpSys: v.bpSys, bpDia: v.bpDia, hr: v.hr, temp: v.temp, spo2: v.spo2, resp: v.resp, bmi: v.bmi }
+        ];
+        saveData();
+    }
+    // ---------------------------------------------------------------
 
     document.getElementById('modal-patient-name').innerText = p.name;
     document.getElementById('modal-patient-info').innerText = `${p.id} • ${p.age} yrs • ${p.sex} • Room: ${p.room}`;
@@ -462,14 +501,114 @@ function openModal(patientId) {
         <div class="vital-box"><h4>BMI</h4><h2>${v.bmi} <small>Normal</small></h2></div>
     `;
 
-    renderChart(p.name, v);
-    populateHistoryTable(v);
+    renderChart(p);
+    populateHistoryTable(p);
 
     document.getElementById('patient-modal').style.display = 'flex';
     switchTab('overview'); 
 }
 
 function closeModal() { document.getElementById('patient-modal').style.display = 'none'; }
+
+function openAddVitalsModal(recordId = null) {
+    if(!currentViewedPatientId) return;
+    const p = patients.find(x => x.id === currentViewedPatientId);
+    if(!p) return;
+    
+    if (recordId) {
+        // Edit Mode
+        const r = p.vitalsHistory.find(v => v.id === recordId);
+        document.getElementById('vitals-modal-title').innerText = "Edit Vitals Record";
+        document.getElementById('v-id').value = r.id;
+        document.getElementById('v-date').value = r.date;
+        document.getElementById('v-bpsys').value = r.bpSys;
+        document.getElementById('v-bpdia').value = r.bpDia;
+        document.getElementById('v-hr').value = r.hr;
+        document.getElementById('v-temp').value = r.temp;
+        document.getElementById('v-spo2').value = r.spo2;
+        document.getElementById('v-resp').value = r.resp;
+        document.getElementById('v-bmi').value = r.bmi;
+    } else {
+        // Add Mode
+        document.getElementById('vitals-modal-title').innerText = "Record New Vitals";
+        document.getElementById('v-id').value = '';
+        document.getElementById('v-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('v-bpsys').value = p.vitals.bpSys;
+        document.getElementById('v-bpdia').value = p.vitals.bpDia;
+        document.getElementById('v-hr').value = p.vitals.hr;
+        document.getElementById('v-temp').value = p.vitals.temp;
+        document.getElementById('v-spo2').value = p.vitals.spo2;
+        document.getElementById('v-resp').value = p.vitals.resp;
+        document.getElementById('v-bmi').value = p.vitals.bmi;
+    }
+
+    document.getElementById('add-vitals-modal').style.display = 'flex';
+}
+
+function closeAddVitalsModal() { document.getElementById('add-vitals-modal').style.display = 'none'; }
+
+function saveVitals(e) {
+    e.preventDefault();
+    if(!currentViewedPatientId) return;
+    
+    const index = patients.findIndex(p => p.id === currentViewedPatientId);
+    if(index === -1) return;
+
+    let p = patients[index];
+    let vId = document.getElementById('v-id').value;
+
+    let newVitalData = {
+        date: document.getElementById('v-date').value,
+        bpSys: parseInt(document.getElementById('v-bpsys').value),
+        bpDia: parseInt(document.getElementById('v-bpdia').value),
+        hr: parseInt(document.getElementById('v-hr').value),
+        temp: parseFloat(document.getElementById('v-temp').value),
+        spo2: parseInt(document.getElementById('v-spo2').value),
+        resp: parseInt(document.getElementById('v-resp').value),
+        bmi: parseFloat(document.getElementById('v-bmi').value)
+    };
+
+    if (vId) {
+        // Find and Edit existing
+        let rIndex = p.vitalsHistory.findIndex(r => r.id == vId);
+        if(rIndex > -1) {
+            p.vitalsHistory[rIndex] = { id: parseInt(vId), ...newVitalData };
+        }
+    } else {
+        // Push New
+        p.vitalsHistory.push({ id: Date.now(), ...newVitalData });
+    }
+
+    // Sort descending by date so index [0] is always the latest
+    p.vitalsHistory.sort((a,b) => new Date(b.date) - new Date(a.date));
+    p.vitals = p.vitalsHistory[0]; // Update main vitals overview
+
+    saveData();
+    populateTable(); 
+    closeAddVitalsModal();
+    openModal(currentViewedPatientId); 
+}
+
+function deleteVitalRecord(recordId) {
+    if(!confirm("Are you sure you want to delete this vital record?")) return;
+    
+    const p = patients.find(x => x.id === currentViewedPatientId);
+    if(!p) return;
+
+    p.vitalsHistory = p.vitalsHistory.filter(v => v.id != recordId);
+    
+    if (p.vitalsHistory.length > 0) {
+        p.vitalsHistory.sort((a,b) => new Date(b.date) - new Date(a.date));
+        p.vitals = p.vitalsHistory[0];
+    } else {
+        // Fallback if they delete everything
+        p.vitals = { bpSys: 0, bpDia: 0, hr: 0, temp: 0, spo2: 0, resp: 0, bmi: 0 };
+    }
+    
+    saveData();
+    populateTable();
+    openModal(currentViewedPatientId);
+}
 
 function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -478,22 +617,24 @@ function switchTab(tabName) {
     document.getElementById('tab-' + tabName).classList.add('active');
 }
 
-function renderChart(name, v) {
+function renderChart(p) {
     const ctx = document.getElementById('vitalsChart').getContext('2d');
     if(vitalsChartInstance) vitalsChartInstance.destroy();
 
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#71717a';
 
-    const labels = ['Jan 10', 'Jan 28', 'Feb 14', 'Mar 5', 'Latest'];
+    // Sort ascending for chronological chart view (Left to Right)
+    let chartData = [...p.vitalsHistory].sort((a,b) => new Date(a.date) - new Date(b.date));
+
     vitalsChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels: chartData.map(r => r.date),
             datasets: [
-                { label: 'Systolic BP', data: [v.bpSys-20, v.bpSys-10, v.bpSys+5, v.bpSys-5, v.bpSys], borderColor: '#831843', backgroundColor: '#831843', borderWidth: 3, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 },
-                { label: 'Diastolic BP', data: [v.bpDia-10, v.bpDia-5, v.bpDia+2, v.bpDia-3, v.bpDia], borderColor: '#e11d48', backgroundColor: '#e11d48', borderWidth: 2, borderDash: [5, 5], tension: 0.4, pointRadius: 4 },
-                { label: 'Heart Rate', data: [v.hr+5, v.hr-2, v.hr+8, v.hr-4, v.hr], borderColor: '#fb7185', backgroundColor: '#fb7185', borderWidth: 3, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 }
+                { label: 'Systolic BP', data: chartData.map(r => r.bpSys), borderColor: '#831843', backgroundColor: '#831843', borderWidth: 3, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 },
+                { label: 'Diastolic BP', data: chartData.map(r => r.bpDia), borderColor: '#e11d48', backgroundColor: '#e11d48', borderWidth: 2, borderDash: [5, 5], tension: 0.4, pointRadius: 4 },
+                { label: 'Heart Rate', data: chartData.map(r => r.hr), borderColor: '#fb7185', backgroundColor: '#fb7185', borderWidth: 3, tension: 0.4, pointRadius: 5, pointHoverRadius: 7 }
             ]
         },
         options: { 
@@ -505,13 +646,26 @@ function renderChart(name, v) {
     });
 }
 
-function populateHistoryTable(v) {
+function populateHistoryTable(p) {
     const tbody = document.getElementById('history-tbody');
-    tbody.innerHTML = `
-        <tr style="background: var(--primary-light); font-weight: 800;"><td>Latest</td><td>${v.bpSys} mmHg</td><td>${v.bpDia} mmHg</td></tr>
-        <tr><td>Mar 5</td><td>${v.bpSys - 5} mmHg</td><td>${v.bpDia - 3} mmHg</td></tr>
-        <tr><td>Feb 14</td><td>${v.bpSys + 5} mmHg</td><td>${v.bpDia + 2} mmHg</td></tr>
-        <tr><td>Jan 28</td><td>${v.bpSys - 10} mmHg</td><td>${v.bpDia - 5} mmHg</td></tr>
-        <tr><td>Jan 10</td><td>${v.bpSys - 20} mmHg</td><td>${v.bpDia - 10} mmHg</td></tr>
-    `;
+    tbody.innerHTML = '';
+    
+    // Sort descending for chronological list (Newest Top)
+    let sortedHistory = [...p.vitalsHistory].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    sortedHistory.forEach((r, index) => {
+        let rowStyle = index === 0 ? 'background: var(--primary-light); font-weight: 800;' : '';
+        tbody.innerHTML += `
+            <tr style="${rowStyle}">
+                <td>${r.date}</td>
+                <td>${r.bpSys} mmHg</td>
+                <td>${r.bpDia} mmHg</td>
+                <td>${r.hr} bpm</td>
+                <td class="action-cell">
+                    <i class="fas fa-edit edit-icon" onclick="openAddVitalsModal(${r.id})" title="Edit"></i>
+                    <i class="fas fa-trash delete-icon" onclick="deleteVitalRecord(${r.id})" title="Delete"></i>
+                </td>
+            </tr>
+        `;
+    });
 }
