@@ -41,13 +41,14 @@ let pharmacy = [];
 let currentViewedPatientId = null; 
 
 function initData() {
-    if (localStorage.getItem('ehr_patients_v3')) {
-        patients = JSON.parse(localStorage.getItem('ehr_patients_v3'));
+    // Upgraded to v4 to ensure plain-text dates render perfectly
+    if (localStorage.getItem('ehr_patients_v4')) {
+        patients = JSON.parse(localStorage.getItem('ehr_patients_v4'));
     } else {
         patients = [
-            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '2024-04-15', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
-            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '2024-04-18', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
-            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '2024-04-10', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
+            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
+            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
+            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
         saveData();
     }
@@ -90,7 +91,7 @@ function initData() {
 }
 
 function saveData() {
-    localStorage.setItem('ehr_patients_v3', JSON.stringify(patients));
+    localStorage.setItem('ehr_patients_v4', JSON.stringify(patients));
     localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
     localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
     localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
@@ -231,6 +232,10 @@ function populateRecentPatientsWidget() {
 function prepareNewPatient() {
     document.getElementById('patient-form').reset();
     document.getElementById('p-id').value = '';
+    
+    let d = new Date();
+    document.getElementById('p-admission').value = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+    
     document.getElementById('form-title').innerText = "Register New Patient";
     showSection('new-patient', document.querySelectorAll('.nav-links li')[1]);
 }
@@ -257,7 +262,7 @@ function savePatient(e) {
         civil: document.getElementById('p-civil').value,
         doctor: document.getElementById('p-doc').value,
         complaint: document.getElementById('p-complaint').value,
-        date: new Date().toISOString().split('T')[0],
+        date: document.getElementById('p-admission').value,
         vitals: initialVitals,
         vitalsHistory: [],
         record: initialRecord
@@ -289,6 +294,7 @@ function editPatient(id) {
     document.getElementById('p-age').value = p.age;
     document.getElementById('p-sex').value = p.sex;
     document.getElementById('p-contact').value = p.contact;
+    document.getElementById('p-admission').value = p.date;
     document.getElementById('p-address').value = p.address || '';
     document.getElementById('p-blood').value = p.blood;
     document.getElementById('p-room').value = p.room;
@@ -500,10 +506,7 @@ function openModal(patientId) {
         <div class="vital-box"><h4>BMI</h4><h2>${v.bmi} <small>Normal</small></h2></div>
     `;
 
-    let dParts = p.date.split('-');
-    let formattedAdmission = `${parseInt(dParts[1])}/${parseInt(dParts[2])}/${dParts[0]}`;
-    
-    document.getElementById('rec-admission').innerText = formattedAdmission;
+    document.getElementById('rec-admission').innerText = p.date;
     document.getElementById('rec-timestamp').innerText = p.record.timestamp || '-';
     document.getElementById('rec-neuro').innerText = p.record.neuro;
     document.getElementById('rec-resp').innerText = p.record.resp;
