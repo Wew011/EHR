@@ -220,7 +220,6 @@
                         <div class="input-group"><label>Attending Doctor</label><input type="text" id="p-doc" required></div>
                         <div class="input-group"><label>Civil Status</label><select id="p-civil"><option>Single</option><option>Married</option><option>Widowed</option></select></div>
                         <div class="input-group"><label>Diet Restriction</label><input type="text" id="p-diet" placeholder="e.g. Low Sodium"></div>
-                        <!-- NEW EDITABLE ADMISSION DATE FIELD -->
                         <div class="input-group"><label>Admission Date/Time</label><input type="text" id="p-admission" required placeholder="e.g. 4/22/2026"></div>
                         <div class="input-group"><label>Address</label><input type="text" id="p-address"></div>
                         
@@ -320,11 +319,19 @@
             </div>
             <form onsubmit="savePatientRecord(event)">
                 <div class="form-grid" style="grid-template-columns: 1fr;">
-                    <!-- Editable Timestamp Added Here -->
+                    
+                    <!-- Editable Admission Date/Time Added Here -->
+                    <div class="input-group full-width">
+                        <label>Admission Date/Time</label>
+                        <input type="text" id="ur-admission" required>
+                    </div>
+
+                    <!-- Editable Timestamp -->
                     <div class="input-group full-width">
                         <label>Record Timestamp (M/D/YYYY HH:MM:SS)</label>
                         <input type="text" id="ur-timestamp" required>
                     </div>
+
                     <div class="input-group">
                         <label>Neurological Status</label>
                         <select id="ur-neuro" required>
