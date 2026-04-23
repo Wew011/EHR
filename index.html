@@ -317,6 +317,11 @@
             </div>
             <form onsubmit="savePatientRecord(event)">
                 <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <!-- Editable Timestamp Added Here -->
+                    <div class="input-group full-width">
+                        <label>Record Timestamp (M/D/YYYY HH:MM:SS)</label>
+                        <input type="text" id="ur-timestamp" required>
+                    </div>
                     <div class="input-group">
                         <label>Neurological Status</label>
                         <select id="ur-neuro" required>
@@ -325,6 +330,7 @@
                             <option>Lethargic</option>
                             <option>Obtunded</option>
                             <option>Comatose</option>
+                            <option>Confused</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -335,6 +341,7 @@
                             <option>Shallow</option>
                             <option>Labored</option>
                             <option>Tachypnea</option>
+                            <option>Eupnea</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -345,6 +352,7 @@
                             <option>Pale</option>
                             <option>Jaundiced</option>
                             <option>Cyanotic</option>
+                            <option>Pinkish</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -361,7 +369,7 @@
                         <label>Edema</label>
                         <select id="ur-edema" required>
                             <option value="-">Select...</option>
-                            <option>None</option>
+                            <option>None (0)</option>
                             <option>1+ Pitting</option>
                             <option>2+ Pitting</option>
                             <option>3+ Pitting</option>
