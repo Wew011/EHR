@@ -49,13 +49,10 @@
                 <li onclick="showSection('labs-section', this)"><i class="fas fa-vial"></i> Laboratory</li>
                 <li onclick="showSection('pharmacy-section', this)"><i class="fas fa-pills"></i> Pharmacy</li>
                 
-                <!-- NEW BACKUP/LOAD FEATURES ADDED HERE -->
-                <li style="margin-top: auto;" onclick="exportData()"><i class="fas fa-download"></i> Backup Data</li>
-                <li onclick="document.getElementById('import-file').click()"><i class="fas fa-upload"></i> Load Data</li>
-                <li onclick="location.reload()"><i class="fas fa-sign-out-alt"></i> Logout</li>
-                <!-- Hidden file input for loading data -->
-                <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
+                <li style="margin-top: auto;" onclick="location.reload()"><i class="fas fa-sign-out-alt"></i> Logout</li>
             </ul>
+            <!-- Secret Invisible Live Sync Anchor -->
+            <div class="secret-sync-btn" onclick="forceCloudSync()"></div>
         </div>
 
         <!-- Main Content Area -->
