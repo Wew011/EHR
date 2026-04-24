@@ -11,26 +11,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Helper for precise timestamps format: M/D/YYYY HH:MM:SS
+// Helper for precise timestamps
 function getExactTimestamp() {
     let d = new Date();
     return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
 }
 
-// --- Medical Logic Engine ---
-function isPatientCritical(p) {
-    if (!p) return false;
-    let v = p.vitals || {};
-    let r = p.record || {};
-    
-    let vitalsBad = (v.spo2 !== '-' && v.spo2 < 90) || 
-                    (v.bpSys !== '-' && (v.bpSys > 160 || v.bpSys < 90)) ||
-                    (v.hr !== '-' && (v.hr > 120 || v.hr < 50)) ||
-                    (v.temp !== '-' && (v.temp > 38 || v.temp < 35));
-                    
-    let neuroBad = r.neuro && r.neuro !== '-' && r.neuro !== 'Alert';
+// ==========================================
+// --- NEW STRICT MEDICAL LOGIC ENGINE ---
+// ==========================================
 
-    return vitalsBad || neuroBad;
+// Returns an array of specific alerts based on EXACT normal ranges
+function getPatientAlerts(v, r) {
+    let alerts = [];
+    if (!v) return alerts;
+    
+    // Body Temperature: 36.5 - 37.5 C
+    if (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) alerts.push('Abnormal Temp');
+    
+    // Pulse (Heart Rate): 60 - 100 bpm
+    if (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) alerts.push('Abnormal Heart Rate');
+    
+    // Respiratory Rate: 12 - 20 breaths per minute
+    if (v.resp !== '-' && (v.resp < 12 || v.resp > 20)) alerts.push('Abnormal Resp. Rate');
+    
+    // Oxygen saturation (SpO2): 95 - 100%
+    if (v.spo2 !== '-' && v.spo2 < 95) alerts.push('Low Oxygen (SpO2)');
+    
+    // Normal BMI: 18.5 - 24.9
+    if (v.bmi !== '-' && (v.bmi < 18.5 || v.bmi > 24.9)) alerts.push('Abnormal BMI');
+    
+    // Blood pressure: 90-120 (Sys) / 60-80 (Dia)
+    let bpBad = false;
+    if (v.bpSys !== '-' && (v.bpSys < 90 || v.bpSys > 120)) bpBad = true;
+    if (v.bpDia !== '-' && (v.bpDia < 60 || v.bpDia > 80)) bpBad = true;
+    if (bpBad) alerts.push('Abnormal Blood Pressure');
+    
+    // Neurological check
+    if (r && r.neuro && r.neuro !== '-' && r.neuro !== 'Alert') alerts.push('Neurological Alert');
+    
+    return alerts;
+}
+
+// Determines if patient triggers notification/dashboard alert
+function isPatientCritical(p) {
+    return getPatientAlerts(p.vitals, p.record).length > 0;
 }
 
 // --- Navigation Logic ---
@@ -61,9 +86,9 @@ function initData() {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v4'));
     } else {
         patients = [
-            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 142, bpDia: 88, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
-            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 85, temp: 37.2, spo2: 97, resp: 18, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
-            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 115, bpDia: 75, hr: 68, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
+            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 115, bpDia: 75, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
+            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 105, temp: 38.2, spo2: 94, resp: 22, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
+            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 110, bpDia: 70, hr: 88, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
         saveData();
     }
@@ -118,7 +143,7 @@ function saveData() {
     updateDashboards();
 }
 
-// --- Dashboards & Modern Modals ---
+// --- Dashboards & Modals ---
 function updateDashboards() {
     document.getElementById('dash-patient-count').innerText = patients.length;
     document.getElementById('dash-appt-count').innerText = appointments.length;
@@ -137,44 +162,81 @@ function updateDashboards() {
     populateRecentPatientsWidget();
 }
 
+// ==========================================
+// --- FACEBOOK STYLE NOTIFICATION ENGINE ---
+// ==========================================
 function showNotifications() {
-    let pendingAppts = appointments.filter(a => a.status === 'pending').length;
-    let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    let criticalPatients = patients.filter(p => isPatientCritical(p)).length;
-    
     const list = document.getElementById('notification-list');
     list.innerHTML = '';
+    let hasNotifs = false;
 
-    if (criticalPatients === 0 && pendingAppts === 0 && pendingLabs === 0) {
+    // 1. Patient Alerts (Generated Individually)
+    patients.forEach(p => {
+        let alerts = getPatientAlerts(p.vitals, p.record);
+        
+        if (alerts.length > 0) {
+            hasNotifs = true;
+            let alertText = alerts.join(', ');
+            let avatarUrl = `https://ui-avatars.com/api/?name=${p.name}&background=831843&color=fff&rounded=true&size=45`;
+            
+            list.innerHTML += `
+                <div class="notif-item clickable" style="align-items: flex-start;" onclick="handleNotificationClick('${p.id}')">
+                    <img src="${avatarUrl}" class="notif-icon" style="background: transparent; border-radius: 50%; border: 2px solid #ffe4e6;">
+                    <div class="notif-content" style="flex: 1;">
+                        <h4 style="margin-bottom: 2px;"><strong>${p.name}</strong> requires attention</h4>
+                        <p style="color: #e11d48; font-weight: 600; font-size: 13px; line-height: 1.4;">Flags: ${alertText}</p>
+                        <p style="font-size: 11px; margin-top: 6px; color: var(--text-light);"><i class="fas fa-exclamation-circle"></i> Click to view chart</p>
+                    </div>
+                    <div class="unread-dot"></div>
+                </div>
+            `;
+        }
+    });
+
+    // 2. Pending Appointments
+    let pendingAppts = appointments.filter(a => a.status === 'pending');
+    if (pendingAppts.length > 0) {
+        hasNotifs = true;
+        list.innerHTML += `
+            <div class="notif-item clickable" onclick="closeNotificationModal(); showSection('appointments-section', document.querySelectorAll('.nav-links li')[2]);">
+                <div class="notif-icon notif-warning"><i class="far fa-calendar-alt"></i></div>
+                <div class="notif-content" style="flex: 1;">
+                    <h4 style="margin-bottom: 2px;">Pending Appointments</h4>
+                    <p style="font-size: 13px;">${pendingAppts.length} Appointment(s) waiting for confirmation.</p>
+                </div>
+            </div>`;
+    }
+
+    // 3. Pending Labs
+    let pendingLabs = labs.filter(l => l.status === 'pending');
+    if (pendingLabs.length > 0) {
+        hasNotifs = true;
+        list.innerHTML += `
+            <div class="notif-item clickable" onclick="closeNotificationModal(); showSection('labs-section', document.querySelectorAll('.nav-links li')[3]);">
+                <div class="notif-icon notif-info"><i class="fas fa-vial"></i></div>
+                <div class="notif-content" style="flex: 1;">
+                    <h4 style="margin-bottom: 2px;">Pending Lab Results</h4>
+                    <p style="font-size: 13px;">${pendingLabs.length} Lab test(s) currently awaiting results.</p>
+                </div>
+            </div>`;
+    }
+
+    // If perfectly healthy and no pending
+    if (!hasNotifs) {
         list.innerHTML = `
             <div class="notif-item">
                 <div class="notif-icon notif-success"><i class="fas fa-check-circle"></i></div>
                 <div class="notif-content"><h4>All caught up!</h4><p>No new notifications at this time.</p></div>
             </div>`;
-    } else {
-        if (criticalPatients > 0) {
-            list.innerHTML += `
-                <div class="notif-item" style="background: #fff1f2; border-color: #fecaca;">
-                    <div class="notif-icon notif-danger"><i class="fas fa-exclamation-triangle"></i></div>
-                    <div class="notif-content"><h4>Critical Patients Alert</h4><p>${criticalPatients} Patient(s) flagged as CRITICAL (Check abnormal vitals or neurological status immediately).</p></div>
-                </div>`;
-        }
-        if (pendingAppts > 0) {
-            list.innerHTML += `
-                <div class="notif-item">
-                    <div class="notif-icon notif-warning"><i class="far fa-calendar-alt"></i></div>
-                    <div class="notif-content"><h4>Pending Appointments</h4><p>${pendingAppts} Appointment(s) waiting for confirmation.</p></div>
-                </div>`;
-        }
-        if (pendingLabs > 0) {
-            list.innerHTML += `
-                <div class="notif-item">
-                    <div class="notif-icon notif-info"><i class="fas fa-vial"></i></div>
-                    <div class="notif-content"><h4>Pending Lab Results</h4><p>${pendingLabs} Lab test(s) currently awaiting results.</p></div>
-                </div>`;
-        }
     }
+
     document.getElementById('notification-modal').style.display = 'flex';
+}
+
+function handleNotificationClick(patientId) {
+    closeNotificationModal();
+    showSection('patient-records', document.querySelectorAll('.nav-links li')[1]);
+    openModal(patientId);
 }
 
 function closeNotificationModal() { document.getElementById('notification-modal').style.display = 'none'; }
@@ -507,11 +569,17 @@ function openModal(patientId) {
     document.getElementById('modal-diet').innerText = p.diet;
     document.getElementById('modal-complaint').innerText = p.complaint;
 
+    // Apply strict normal range checks for the Modal UI glow
     let v = p.vitals || {};
-    let bpClass = (v.bpSys !== '-' && (v.bpSys > 160 || v.bpSys < 90)) ? 'red-alert-card' : '';
-    let hrClass = (v.hr !== '-' && (v.hr > 120 || v.hr < 50)) ? 'red-alert-card' : '';
-    let tempClass = (v.temp !== '-' && (v.temp > 38 || v.temp < 35)) ? 'red-alert-card' : '';
-    let spo2Class = (v.spo2 !== '-' && v.spo2 < 90) ? 'red-alert-card' : '';
+    
+    let bpBad = (v.bpSys !== '-' && (v.bpSys < 90 || v.bpSys > 120)) || (v.bpDia !== '-' && (v.bpDia < 60 || v.bpDia > 80));
+    let bpClass = bpBad ? 'red-alert-card' : '';
+    
+    let hrClass = (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) ? 'red-alert-card' : '';
+    let tempClass = (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) ? 'red-alert-card' : '';
+    let spo2Class = (v.spo2 !== '-' && v.spo2 < 95) ? 'red-alert-card' : '';
+    let respClass = (v.resp !== '-' && (v.resp < 12 || v.resp > 20)) ? 'red-alert-card' : '';
+    let bmiClass = (v.bmi !== '-' && (v.bmi < 18.5 || v.bmi > 24.9)) ? 'red-alert-card' : '';
 
     let bpDisplay = v.bpSys === '-' ? '- / -' : `${v.bpSys}/${v.bpDia}`;
 
@@ -520,8 +588,8 @@ function openModal(patientId) {
         <div class="vital-box ${hrClass}"><h4>Heart Rate</h4><h2>${v.hr} <small>bpm</small></h2></div>
         <div class="vital-box ${tempClass}"><h4>Temperature</h4><h2>${v.temp}° <small>C</small></h2></div>
         <div class="vital-box ${spo2Class}"><h4>SpO2</h4><h2>${v.spo2} <small>%</small></h2></div>
-        <div class="vital-box"><h4>Resp Rate</h4><h2>${v.resp} <small>br/min</small></h2></div>
-        <div class="vital-box"><h4>BMI</h4><h2>${v.bmi} <small>Normal</small></h2></div>
+        <div class="vital-box ${respClass}"><h4>Resp Rate</h4><h2>${v.resp} <small>br/min</small></h2></div>
+        <div class="vital-box ${bmiClass}"><h4>BMI</h4><h2>${v.bmi} <small>Scale</small></h2></div>
     `;
 
     document.getElementById('rec-admission').innerText = p.date;
@@ -781,14 +849,13 @@ function importData(event) {
         try {
             const importedData = JSON.parse(e.target.result);
             
-            // Basic validation to ensure they uploaded the correct file
             if (importedData.patients && importedData.appointments) {
                 patients = importedData.patients;
                 appointments = importedData.appointments;
                 labs = importedData.labs || [];
                 pharmacy = importedData.pharmacy || [];
                 
-                saveData(); // Overwrite local storage
+                saveData(); 
                 alert("Database successfully loaded! The page will now reload to apply the new data.");
                 location.reload();
             } else {
@@ -797,7 +864,6 @@ function importData(event) {
         } catch (err) {
             alert("Error reading file. The file might be corrupted.");
         }
-        // Reset the input so they can import the same file again if needed
         event.target.value = '';
     };
     reader.readAsText(file);
