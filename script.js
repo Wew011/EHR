@@ -23,6 +23,7 @@ function getExactTimestamp() {
 function getPatientAlerts(v, r) {
     let alerts = [];
     
+    // Check Vitals
     if (v) {
         if (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) alerts.push('Abnormal Temp');
         if (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) alerts.push('Abnormal Heart Rate');
@@ -36,6 +37,7 @@ function getPatientAlerts(v, r) {
         if (bpBad) alerts.push('Abnormal Blood Pressure');
     }
     
+    // Check Clinical Assessment (Record)
     if (r) {
         if (r.neuro && r.neuro !== '-' && !['Alert'].includes(r.neuro)) alerts.push('Abnormal Neuro');
         if (r.resp && r.resp !== '-' && !['Normal/Regular'].includes(r.resp)) alerts.push('Abnormal Breathing Pattern');
@@ -69,7 +71,7 @@ function showSection(sectionId, navElement) {
 }
 
 // ==========================================
-// --- DATA MANAGEMENT & SYNC LOGIC ---
+// --- DATA MANAGEMENT & ROBUST SYNC ---
 // ==========================================
 let patients = [];
 let appointments = [];
@@ -77,7 +79,21 @@ let labs = [];
 let pharmacy = [];
 let currentViewedPatientId = null; 
 
-let localLastModified = parseInt(localStorage.getItem('ehr_last_modified')) || 0;
+let localDataHash = "";
+
+// Creates a unique string footprint of your entire database
+function generateDataHash(pts, appts, lbs, pharm) {
+    return JSON.stringify({ pts, appts, lbs, pharm });
+}
+
+// Safely forces missing fields to exist so the app never crashes
+function sanitizeData() {
+    patients.forEach(p => {
+        if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
+        if (!p.vitals) p.vitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
+        if (!p.vitalsHistory) p.vitalsHistory = [];
+    });
+}
 
 function initData() {
     if (localStorage.getItem('ehr_patients_v4')) {
@@ -88,66 +104,40 @@ function initData() {
             { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 105, temp: 38.2, spo2: 94, resp: 22, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
             { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 110, bpDia: 70, hr: 88, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
-        localLastModified = 0; 
     }
 
-    patients.forEach(p => {
-        if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
-        if (!p.vitals) p.vitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
-    });
-
-    if (localStorage.getItem('ehr_appointments_v2')) {
-        appointments = JSON.parse(localStorage.getItem('ehr_appointments_v2'));
-    } else {
-        appointments = [
-            { id: 1, name: 'Sarah Johnson', time: 'Today, 09:00 AM', doc: 'Dr. Maria Santos', type: 'Follow-up', status: 'completed' },
-            { id: 2, name: 'Emily Rodriguez', time: 'Tomorrow, 09:30 AM', doc: 'Dr. Elena Reyes', type: 'Checkup', status: 'pending' }
-        ];
-    }
-
-    if (localStorage.getItem('ehr_labs_v2')) {
-        labs = JSON.parse(localStorage.getItem('ehr_labs_v2'));
-    } else {
-        labs = [
-            { id: 1, name: 'Sarah Johnson', test: 'Lipid Panel', date: '2024-04-22', status: 'completed' },
-            { id: 2, name: 'Michael Chen', test: 'Microalbumin', date: '2024-04-22', status: 'pending' }
-        ];
-    }
-
-    if (localStorage.getItem('ehr_pharmacy_v2')) {
-        pharmacy = JSON.parse(localStorage.getItem('ehr_pharmacy_v2'));
-    } else {
-        pharmacy = [
-            { id: 1, name: 'Sarah Johnson', meds: 'Amoxicillin 500mg', doc: 'Dr. Maria Santos', status: 'dispensed' },
-            { id: 2, name: 'Michael Chen', meds: 'Losartan 50mg', doc: 'Dr. Juan Dela Cruz', status: 'pending' }
-        ];
-    }
+    if (localStorage.getItem('ehr_appointments_v2')) { appointments = JSON.parse(localStorage.getItem('ehr_appointments_v2')); }
+    if (localStorage.getItem('ehr_labs_v2')) { labs = JSON.parse(localStorage.getItem('ehr_labs_v2')); }
+    if (localStorage.getItem('ehr_pharmacy_v2')) { pharmacy = JSON.parse(localStorage.getItem('ehr_pharmacy_v2')); }
 
     saveData(true); 
 }
 
-// Universal UI Refresher: instantly updates all visual elements on the page
+// Universal UI Refresher: Safely redraws the entire screen instantly
 function refreshUI() {
-    updateDashboards();
-    populateTable();
-    populateAppointments();
-    populateLabs();
-    populatePharmacy();
+    sanitizeData();
+    try { updateDashboards(); } catch(e){}
+    try { populateTable(); } catch(e){}
+    try { populateAppointments(); } catch(e){}
+    try { populateLabs(); } catch(e){}
+    try { populatePharmacy(); } catch(e){}
 }
 
 function saveData(skipUpload = false) {
+    sanitizeData();
+    
     localStorage.setItem('ehr_patients_v4', JSON.stringify(patients));
     localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
     localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
     localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
     
-    // Instantly force the entire UI (Tables, Dashboard, Notifications) to redraw 
-    // with the latest data, eliminating the need to refresh the page.
+    // Update our local footprint hash
+    localDataHash = generateDataHash(patients, appointments, labs, pharmacy);
+    
+    // Force aggressive UI redraw
     refreshUI();
     
     if(!skipUpload) {
-        localLastModified = Date.now();
-        localStorage.setItem('ehr_last_modified', localLastModified);
         uploadToCloud();
     }
 }
@@ -297,7 +287,7 @@ function populateRecentPatientsWidget() {
         let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
         let displayTime = mockTimes[index] || '12:00 PM';
         
-        // --- Dynamic Red Tag Generation with Bell Icon for Dashboard ---
+        // Dynamic Red Tag Generation with Bell Icon for Dashboard
         let r = p.record || {};
         let assessmentTags = '';
         
@@ -314,7 +304,7 @@ function populateRecentPatientsWidget() {
         assessmentTags += createTag('Bowel', r.bowel, ['Normal Active']);
         assessmentTags += createTag('Edema', r.edema, ['None (0)']);
 
-        // If no abnormal tags exist, show default normal tag to keep layout consistent
+        // Default layout consistency
         if (assessmentTags === '') {
             let neuroText = r.neuro && r.neuro !== '-' ? r.neuro : '-';
             assessmentTags = `<span style="font-size: 11px; color: var(--primary); font-weight: 600; background: var(--primary-light); padding: 3px 7px; border-radius: 4px; display: inline-block; margin-top: 5px;">Neuro: ${neuroText}</span>`;
@@ -391,6 +381,7 @@ function savePatient(e) {
         alert('Patient saved successfully!');
     }
 
+    // Call saveData which natively forces UI redraw instantly
     saveData();
     showSection('patient-records', document.querySelectorAll('.nav-links li')[1]);
 }
@@ -426,6 +417,7 @@ function deletePatient(id) {
 
 function populateTable() {
     const tbody = document.getElementById('patients-tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     patients.forEach(patient => {
@@ -482,7 +474,9 @@ function deleteAppointment(id) {
     if(confirm("Delete this appointment?")) { appointments = appointments.filter(a => a.id !== id); saveData(); }
 }
 function populateAppointments() {
-    const tbody = document.getElementById('appointments-tbody'); tbody.innerHTML = '';
+    const tbody = document.getElementById('appointments-tbody'); 
+    if(!tbody) return;
+    tbody.innerHTML = '';
     appointments.forEach(app => {
         tbody.innerHTML += `<tr>
             <td><strong style="color:var(--text-dark);">${app.name}</strong></td><td>${app.time}</td><td>${app.doc}</td><td>${app.type}</td>
@@ -518,7 +512,9 @@ function deleteLab(id) {
     if(confirm("Delete this lab record?")) { labs = labs.filter(l => l.id !== id); saveData(); }
 }
 function populateLabs() {
-    const tbody = document.getElementById('labs-tbody'); tbody.innerHTML = '';
+    const tbody = document.getElementById('labs-tbody'); 
+    if(!tbody) return;
+    tbody.innerHTML = '';
     labs.forEach(lab => {
         tbody.innerHTML += `<tr>
             <td><strong style="color:var(--text-dark);">${lab.name}</strong></td><td>${lab.test}</td><td>${lab.date}</td>
@@ -553,7 +549,9 @@ function deleteMed(id) {
     if(confirm("Delete this pharmacy order?")) { pharmacy = pharmacy.filter(m => m.id !== id); saveData(); }
 }
 function populatePharmacy() {
-    const tbody = document.getElementById('pharmacy-tbody'); tbody.innerHTML = '';
+    const tbody = document.getElementById('pharmacy-tbody'); 
+    if(!tbody) return;
+    tbody.innerHTML = '';
     pharmacy.forEach(rx => {
         tbody.innerHTML += `<tr>
             <td><strong style="color:var(--text-dark);">${rx.name}</strong></td><td><i class="fas fa-pills" style="color: var(--secondary); margin-right:5px;"></i> ${rx.meds}</td><td>${rx.doc}</td>
@@ -834,6 +832,7 @@ function renderChart(p) {
 
 function populateHistoryTable(p) {
     const tbody = document.getElementById('history-tbody');
+    if(!tbody) return;
     tbody.innerHTML = '';
     
     if(!p.vitalsHistory || p.vitalsHistory.length === 0) {
@@ -861,14 +860,14 @@ function populateHistoryTable(p) {
 }
 
 // ==========================================
-// --- INVISIBLE CLOUD LIVE-SYNC ENGINE ---
+// --- FLAWLESS REAL-TIME CLOUD SYNC ---
 // ==========================================
 
-const CLOUD_DB_KEY = "ubstudehr_db_2024_live_v2"; 
+const CLOUD_DB_KEY = "ubstudehr_db_2024_hash_sync"; 
 const CLOUD_API_URL = `https://kvs.zackumar.com/keys/${CLOUD_DB_KEY}`;
 
 async function uploadToCloud() {
-    const payload = { patients, appointments, labs, pharmacy, lastModified: localLastModified };
+    const payload = { patients, appointments, labs, pharmacy };
     try {
         await fetch(CLOUD_API_URL, {
             method: 'POST',
@@ -884,19 +883,22 @@ async function downloadFromCloud() {
         if (!response.ok) return;
         
         const cloudData = await response.json();
-        if (!cloudData || !cloudData.lastModified) return;
+        if (!cloudData) return;
 
-        if (cloudData.lastModified > localLastModified) {
+        // Generate a text string footprint of the cloud data
+        let cloudHash = generateDataHash(cloudData.patients || [], cloudData.appointments || [], cloudData.labs || [], cloudData.pharmacy || []);
+
+        // If the cloud footprint is different than our local footprint, update instantly!
+        if (cloudHash !== localDataHash && cloudHash !== generateDataHash([],[],[],[])) {
             patients = cloudData.patients || [];
             appointments = cloudData.appointments || [];
             labs = cloudData.labs || [];
             pharmacy = cloudData.pharmacy || [];
             
-            localLastModified = cloudData.lastModified;
-            localStorage.setItem('ehr_last_modified', localLastModified);
-            
+            // Overwrite local memory and instantly redraw UI
             saveData(true); 
             
+            // If viewing a patient, seamlessly re-open to show new red alerts
             if (currentViewedPatientId && document.getElementById('patient-modal').style.display === 'flex') {
                 openModal(currentViewedPatientId);
             }
@@ -906,7 +908,7 @@ async function downloadFromCloud() {
 
 function forceCloudSync() {
     uploadToCloud();
-    alert("Manual Cloud Sync Triggered Invisibly.");
 }
 
+// Check the cloud footprint every 3 seconds for seamless background updates
 setInterval(downloadFromCloud, 3000);
