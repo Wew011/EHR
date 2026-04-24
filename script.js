@@ -18,19 +18,16 @@ function getExactTimestamp() {
 }
 
 // --- Medical Logic Engine ---
-// This function strictly determines if a patient should trigger a red notification/alert
 function isPatientCritical(p) {
     if (!p) return false;
     let v = p.vitals || {};
     let r = p.record || {};
     
-    // Check for abnormal vital signs
     let vitalsBad = (v.spo2 !== '-' && v.spo2 < 90) || 
                     (v.bpSys !== '-' && (v.bpSys > 160 || v.bpSys < 90)) ||
                     (v.hr !== '-' && (v.hr > 120 || v.hr < 50)) ||
                     (v.temp !== '-' && (v.temp > 38 || v.temp < 35));
                     
-    // Check for abnormal neurological status (Anything other than normal 'Alert' or unrecorded '-')
     let neuroBad = r.neuro && r.neuro !== '-' && r.neuro !== 'Alert';
 
     return vitalsBad || neuroBad;
@@ -60,7 +57,6 @@ let pharmacy = [];
 let currentViewedPatientId = null; 
 
 function initData() {
-    // Upgraded to v4 to ensure plain-text dates render perfectly
     if (localStorage.getItem('ehr_patients_v4')) {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v4'));
     } else {
@@ -72,7 +68,6 @@ function initData() {
         saveData();
     }
 
-    // Safety fallback: Ensure all loaded patients have a valid record object to prevent crashes
     patients.forEach(p => {
         if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
         if (!p.vitals) p.vitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
@@ -132,8 +127,6 @@ function updateDashboards() {
 
     let pendingAppts = appointments.filter(a => a.status === 'pending').length;
     let pendingLabs = labs.filter(l => l.status === 'pending').length;
-    
-    // Utilize the new robust medical logic engine to find critical patients
     let criticalPatients = patients.filter(p => isPatientCritical(p)).length;
     
     const badge = document.getElementById('notification-badge');
@@ -226,7 +219,6 @@ function populateRecentPatientsWidget() {
         let status = 'Stable';
         let statusClass = 'status-completed'; 
         
-        // Use robust medical engine
         if(isPatientCritical(p)) { 
             status = 'Critical Alert'; 
             statusClass = 'status-critical'; 
@@ -238,8 +230,6 @@ function populateRecentPatientsWidget() {
         let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
         let displayTime = mockTimes[index] || '12:00 PM';
         let neuroText = p.record && p.record.neuro ? p.record.neuro : '-';
-        
-        // Check if neuro needs to be highlighted red inside the small text
         let neuroStyle = (neuroText !== '-' && neuroText !== 'Alert') ? 'color: #e11d48; font-weight: 800;' : 'color: var(--primary); font-weight: 600;';
 
         list.innerHTML += `
@@ -760,4 +750,55 @@ function populateHistoryTable(p) {
             </tr>
         `;
     });
+}
+
+// ==========================================
+// --- EXPORT / IMPORT DATABASE LOGIC ---
+// ==========================================
+
+function exportData() {
+    const data = {
+        patients: patients,
+        appointments: appointments,
+        labs: labs,
+        pharmacy: pharmacy
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "ubstudEHR_database_backup.json");
+    document.body.appendChild(downloadAnchorNode); 
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+}
+
+function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            
+            // Basic validation to ensure they uploaded the correct file
+            if (importedData.patients && importedData.appointments) {
+                patients = importedData.patients;
+                appointments = importedData.appointments;
+                labs = importedData.labs || [];
+                pharmacy = importedData.pharmacy || [];
+                
+                saveData(); // Overwrite local storage
+                alert("Database successfully loaded! The page will now reload to apply the new data.");
+                location.reload();
+            } else {
+                alert("Invalid file format. Please upload a valid ubstudEHR database backup JSON file.");
+            }
+        } catch (err) {
+            alert("Error reading file. The file might be corrupted.");
+        }
+        // Reset the input so they can import the same file again if needed
+        event.target.value = '';
+    };
+    reader.readAsText(file);
 }
