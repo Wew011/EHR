@@ -1,4 +1,3 @@
-
 // --- Initialize Dynamic Dates on Load ---
 document.addEventListener('DOMContentLoaded', () => {
     const dateEl = document.getElementById('current-date-display');
@@ -19,7 +18,7 @@ function getExactTimestamp() {
 }
 
 // ==========================================
-// --- NEW STRICT MEDICAL LOGIC ENGINE ---
+// --- STRICT MEDICAL LOGIC ENGINE ---
 // ==========================================
 function getPatientAlerts(v, r) {
     let alerts = [];
@@ -51,7 +50,7 @@ function login() {
     document.getElementById('app-layout').style.display = 'flex';
     initData(); 
     
-    // Automatically fetch from cloud as soon as we log in
+    // Immediately pull fresh data from cloud on login
     downloadFromCloud();
 }
 
@@ -64,23 +63,29 @@ function showSection(sectionId, navElement) {
     }
 }
 
-// --- Local Storage & Data Management ---
+// ==========================================
+// --- DATA MANAGEMENT & SYNC LOGIC ---
+// ==========================================
 let patients = [];
 let appointments = [];
 let labs = [];
 let pharmacy = [];
 let currentViewedPatientId = null; 
 
+// Track local modification time to prevent overwriting cloud data
+let localLastModified = parseInt(localStorage.getItem('ehr_last_modified')) || 0;
+
 function initData() {
     if (localStorage.getItem('ehr_patients_v4')) {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v4'));
     } else {
+        // First time loading - create mock data, but DO NOT upload to cloud yet!
         patients = [
             { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 115, bpDia: 75, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
             { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 105, temp: 38.2, spo2: 94, resp: 22, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
             { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 110, bpDia: 70, hr: 88, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
-        saveData();
+        localLastModified = 0; // Set to 0 so cloud immediately overwrites this if cloud has data
     }
 
     patients.forEach(p => {
@@ -95,7 +100,6 @@ function initData() {
             { id: 1, name: 'Sarah Johnson', time: 'Today, 09:00 AM', doc: 'Dr. Maria Santos', type: 'Follow-up', status: 'completed' },
             { id: 2, name: 'Emily Rodriguez', time: 'Tomorrow, 09:30 AM', doc: 'Dr. Elena Reyes', type: 'Checkup', status: 'pending' }
         ];
-        saveData();
     }
 
     if (localStorage.getItem('ehr_labs_v2')) {
@@ -105,7 +109,6 @@ function initData() {
             { id: 1, name: 'Sarah Johnson', test: 'Lipid Panel', date: '2024-04-22', status: 'completed' },
             { id: 2, name: 'Michael Chen', test: 'Microalbumin', date: '2024-04-22', status: 'pending' }
         ];
-        saveData();
     }
 
     if (localStorage.getItem('ehr_pharmacy_v2')) {
@@ -115,13 +118,13 @@ function initData() {
             { id: 1, name: 'Sarah Johnson', meds: 'Amoxicillin 500mg', doc: 'Dr. Maria Santos', status: 'dispensed' },
             { id: 2, name: 'Michael Chen', meds: 'Losartan 50mg', doc: 'Dr. Juan Dela Cruz', status: 'pending' }
         ];
-        saveData();
     }
 
+    // Save locally without uploading (to avoid overwriting teammate's cloud data on initial load)
+    saveData(true); 
     refreshUI();
 }
 
-// Function to refresh the UI elements without completely reloading the page
 function refreshUI() {
     updateDashboards();
     populateTable();
@@ -130,6 +133,7 @@ function refreshUI() {
     populatePharmacy();
 }
 
+// Automatically called whenever YOU edit or add something
 function saveData(skipUpload = false) {
     localStorage.setItem('ehr_patients_v4', JSON.stringify(patients));
     localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
@@ -138,8 +142,10 @@ function saveData(skipUpload = false) {
     
     updateDashboards();
     
-    // Automatically trigger cloud sync whenever data is saved locally
     if(!skipUpload) {
+        // You made a change! Update the timestamp and upload to cloud
+        localLastModified = Date.now();
+        localStorage.setItem('ehr_last_modified', localLastModified);
         uploadToCloud();
     }
 }
@@ -171,7 +177,6 @@ function showNotifications() {
     list.innerHTML = '';
     let hasNotifs = false;
 
-    // 1. Patient Alerts
     patients.forEach(p => {
         let alerts = getPatientAlerts(p.vitals, p.record);
         
@@ -194,7 +199,6 @@ function showNotifications() {
         }
     });
 
-    // 2. Pending Appointments
     let pendingAppts = appointments.filter(a => a.status === 'pending');
     if (pendingAppts.length > 0) {
         hasNotifs = true;
@@ -208,7 +212,6 @@ function showNotifications() {
             </div>`;
     }
 
-    // 3. Pending Labs
     let pendingLabs = labs.filter(l => l.status === 'pending');
     if (pendingLabs.length > 0) {
         hasNotifs = true;
@@ -819,19 +822,17 @@ function populateHistoryTable(p) {
     });
 }
 
-
 // ==========================================
 // --- INVISIBLE CLOUD LIVE-SYNC ENGINE ---
 // ==========================================
 
-// This uses a free, public Key-Value database so teammates sync seamlessly
-// over the internet without needing to set up Firebase or user accounts.
-const CLOUD_DB_KEY = "ubstudehr_db_2024_live"; 
+// Changed DB Key to completely wipe the previous corrupted DB
+const CLOUD_DB_KEY = "ubstudehr_db_2024_live_v2"; 
 const CLOUD_API_URL = `https://kvs.zackumar.com/keys/${CLOUD_DB_KEY}`;
 
 // Uploads data silently to the cloud whenever someone saves
 async function uploadToCloud() {
-    const payload = { patients, appointments, labs, pharmacy };
+    const payload = { patients, appointments, labs, pharmacy, lastModified: localLastModified };
     try {
         await fetch(CLOUD_API_URL, {
             method: 'POST',
@@ -839,46 +840,51 @@ async function uploadToCloud() {
             body: JSON.stringify(payload)
         });
     } catch (e) {
-        console.log("Offline mode: Cloud upload paused.");
+        // Fails silently so it doesn't break the app
     }
 }
 
-// Downloads data from teammates every 5 seconds invisibly
+// Downloads data from teammates every 3 seconds invisibly
 async function downloadFromCloud() {
     try {
         const response = await fetch(CLOUD_API_URL);
         if (!response.ok) return;
         
         const cloudData = await response.json();
-        if (!cloudData) return;
+        if (!cloudData || !cloudData.lastModified) return;
 
-        let currentTotal = patients.length + appointments.length + labs.length + pharmacy.length;
-        let cloudTotal = (cloudData.patients?.length || 0) + (cloudData.appointments?.length || 0) + 
-                         (cloudData.labs?.length || 0) + (cloudData.pharmacy?.length || 0);
-
-        // If a teammate added data (cloud has more items), auto-update the local screen
-        if (cloudTotal > currentTotal) {
+        // ONLY download and overwrite if the teammate's cloud data is NEWER than our local data
+        if (cloudData.lastModified > localLastModified) {
             patients = cloudData.patients || [];
             appointments = cloudData.appointments || [];
             labs = cloudData.labs || [];
             pharmacy = cloudData.pharmacy || [];
             
-            // Save to browser silently
+            // Match our local timestamp to the cloud so we don't redownload immediately
+            localLastModified = cloudData.lastModified;
+            localStorage.setItem('ehr_last_modified', localLastModified);
+            
+            // Save to browser silently (skip upload so we don't create an infinite loop)
             saveData(true); 
             
             // Refresh screen silently
             refreshUI();
+            
+            // If the patient modal is currently open, refresh it so the new data shows instantly
+            if (currentViewedPatientId && document.getElementById('patient-modal').style.display === 'flex') {
+                openModal(currentViewedPatientId);
+            }
         }
     } catch(e) {
-        // Fails silently if internet drops, so it doesn't break the website
+        // Fails silently if internet drops
     }
 }
 
-// Manual trigger linked to the invisible button just in case
+// Manual trigger linked to the invisible button just in case you ever need it
 function forceCloudSync() {
     uploadToCloud();
     alert("Manual Cloud Sync Triggered Invisibly.");
 }
 
-// Run the Live Engine check every 5 seconds
-setInterval(downloadFromCloud, 5000);
+// Check for live updates every 3 seconds
+setInterval(downloadFromCloud, 3000);
