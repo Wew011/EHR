@@ -48,7 +48,13 @@
                 <li onclick="showSection('appointments-section', this)"><i class="far fa-calendar-alt"></i> Appointments</li>
                 <li onclick="showSection('labs-section', this)"><i class="fas fa-vial"></i> Laboratory</li>
                 <li onclick="showSection('pharmacy-section', this)"><i class="fas fa-pills"></i> Pharmacy</li>
-                <li style="margin-top: auto;" onclick="location.reload()"><i class="fas fa-sign-out-alt"></i> Logout</li>
+                
+                <!-- NEW BACKUP/LOAD FEATURES ADDED HERE -->
+                <li style="margin-top: auto;" onclick="exportData()"><i class="fas fa-download"></i> Backup Data</li>
+                <li onclick="document.getElementById('import-file').click()"><i class="fas fa-upload"></i> Load Data</li>
+                <li onclick="location.reload()"><i class="fas fa-sign-out-alt"></i> Logout</li>
+                <!-- Hidden file input for loading data -->
+                <input type="file" id="import-file" style="display: none;" accept=".json" onchange="importData(event)">
             </ul>
         </div>
 
@@ -319,19 +325,14 @@
             </div>
             <form onsubmit="savePatientRecord(event)">
                 <div class="form-grid" style="grid-template-columns: 1fr;">
-                    
-                    <!-- Editable Admission Date/Time Added Here -->
                     <div class="input-group full-width">
                         <label>Admission Date/Time</label>
                         <input type="text" id="ur-admission" required>
                     </div>
-
-                    <!-- Editable Timestamp -->
                     <div class="input-group full-width">
                         <label>Record Timestamp (M/D/YYYY HH:MM:SS)</label>
                         <input type="text" id="ur-timestamp" required>
                     </div>
-
                     <div class="input-group">
                         <label>Neurological Status</label>
                         <select id="ur-neuro" required>
