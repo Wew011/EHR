@@ -23,7 +23,6 @@ function getExactTimestamp() {
 function getPatientAlerts(v, r) {
     let alerts = [];
     
-    // Check Vitals
     if (v) {
         if (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) alerts.push('Abnormal Temp');
         if (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) alerts.push('Abnormal Heart Rate');
@@ -37,7 +36,6 @@ function getPatientAlerts(v, r) {
         if (bpBad) alerts.push('Abnormal Blood Pressure');
     }
     
-    // Check Clinical Assessment (Record) based on strict normal/abnormal rules
     if (r) {
         if (r.neuro && r.neuro !== '-' && !['Alert'].includes(r.neuro)) alerts.push('Abnormal Neuro');
         if (r.resp && r.resp !== '-' && !['Normal/Regular'].includes(r.resp)) alerts.push('Abnormal Breathing Pattern');
@@ -126,9 +124,9 @@ function initData() {
     }
 
     saveData(true); 
-    refreshUI();
 }
 
+// Universal UI Refresher: instantly updates all visual elements on the page
 function refreshUI() {
     updateDashboards();
     populateTable();
@@ -143,7 +141,9 @@ function saveData(skipUpload = false) {
     localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
     localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
     
-    updateDashboards();
+    // Instantly force the entire UI (Tables, Dashboard, Notifications) to redraw 
+    // with the latest data, eliminating the need to refresh the page.
+    refreshUI();
     
     if(!skipUpload) {
         localLastModified = Date.now();
@@ -297,7 +297,7 @@ function populateRecentPatientsWidget() {
         let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
         let displayTime = mockTimes[index] || '12:00 PM';
         
-        // --- NEW LOGIC: Dynamic Red Tag Generation with Bell Icon ---
+        // --- Dynamic Red Tag Generation with Bell Icon for Dashboard ---
         let r = p.record || {};
         let assessmentTags = '';
         
@@ -392,7 +392,6 @@ function savePatient(e) {
     }
 
     saveData();
-    populateTable();
     showSection('patient-records', document.querySelectorAll('.nav-links li')[1]);
 }
 
@@ -422,7 +421,6 @@ function deletePatient(id) {
     if (confirm("Are you sure you want to delete this patient? This action cannot be undone.")) {
         patients = patients.filter(p => p.id !== id);
         saveData();
-        populateTable();
     }
 }
 
@@ -469,7 +467,7 @@ function saveAppointment(e) {
     let name = document.getElementById('new-appt-name').value;
     let type = document.getElementById('new-appt-type').value;
     appointments.push({ id: Date.now(), name: name, time: 'Pending Schedule', doc: 'Unassigned', type: type, status: 'pending' });
-    saveData(); populateAppointments(); closeAppointmentModal();
+    saveData(); closeAppointmentModal();
     showSection('appointments-section', document.querySelectorAll('.nav-links li')[2]);
 }
 function cycleApptStatus(id) {
@@ -478,10 +476,10 @@ function cycleApptStatus(id) {
     else if(appt.status === 'scheduled') appt.status = 'completed';
     else if(appt.status === 'completed') appt.status = 'cancelled';
     else appt.status = 'pending';
-    saveData(); populateAppointments();
+    saveData();
 }
 function deleteAppointment(id) {
-    if(confirm("Delete this appointment?")) { appointments = appointments.filter(a => a.id !== id); saveData(); populateAppointments(); }
+    if(confirm("Delete this appointment?")) { appointments = appointments.filter(a => a.id !== id); saveData(); }
 }
 function populateAppointments() {
     const tbody = document.getElementById('appointments-tbody'); tbody.innerHTML = '';
@@ -506,7 +504,7 @@ function saveLab(e) {
     let name = document.getElementById('new-lab-name').value;
     let test = document.getElementById('new-lab-test').value;
     labs.push({ id: Date.now(), name: name, test: test, date: new Date().toISOString().split('T')[0], status: 'pending' });
-    saveData(); populateLabs(); closeLabModal();
+    saveData(); closeLabModal();
     showSection('labs-section', document.querySelectorAll('.nav-links li')[3]);
 }
 function cycleLabStatus(id) {
@@ -514,10 +512,10 @@ function cycleLabStatus(id) {
     if(lab.status === 'pending') lab.status = 'completed';
     else if(lab.status === 'completed') lab.status = 'critical';
     else lab.status = 'pending';
-    saveData(); populateLabs();
+    saveData();
 }
 function deleteLab(id) {
-    if(confirm("Delete this lab record?")) { labs = labs.filter(l => l.id !== id); saveData(); populateLabs(); }
+    if(confirm("Delete this lab record?")) { labs = labs.filter(l => l.id !== id); saveData(); }
 }
 function populateLabs() {
     const tbody = document.getElementById('labs-tbody'); tbody.innerHTML = '';
@@ -542,17 +540,17 @@ function savePharmacy(e) {
     let name = document.getElementById('new-pharm-name').value;
     let med = document.getElementById('new-pharm-med').value;
     pharmacy.push({ id: Date.now(), name: name, meds: med, doc: 'Unassigned', status: 'pending' });
-    saveData(); populatePharmacy(); closePharmacyModal();
+    saveData(); closePharmacyModal();
     showSection('pharmacy-section', document.querySelectorAll('.nav-links li')[4]);
 }
 function cycleMedStatus(id) {
     let med = pharmacy.find(m => m.id === id);
     if(med.status === 'pending') med.status = 'dispensed';
     else med.status = 'pending';
-    saveData(); populatePharmacy();
+    saveData();
 }
 function deleteMed(id) {
-    if(confirm("Delete this pharmacy order?")) { pharmacy = pharmacy.filter(m => m.id !== id); saveData(); populatePharmacy(); }
+    if(confirm("Delete this pharmacy order?")) { pharmacy = pharmacy.filter(m => m.id !== id); saveData(); }
 }
 function populatePharmacy() {
     const tbody = document.getElementById('pharmacy-tbody'); tbody.innerHTML = '';
@@ -621,7 +619,7 @@ function openModal(patientId) {
     document.getElementById('rec-admission').innerText = p.date;
     document.getElementById('rec-timestamp').innerText = p.record.timestamp || '-';
 
-    // --- NEW LOGIC: Dynamic Record Highlighting in Modal ---
+    // --- Dynamic Record Highlighting in Modal ---
     const styleAssessmentCard = (elementId, value, normalValues) => {
         const el = document.getElementById(elementId);
         el.innerText = value;
@@ -772,7 +770,6 @@ function saveVitals(e) {
     p.vitals = p.vitalsHistory[0]; 
 
     saveData();
-    populateTable(); 
     closeAddVitalsModal();
     openModal(currentViewedPatientId); 
     switchTab(activeTabId);
@@ -794,7 +791,6 @@ function deleteVitalRecord(recordId) {
     }
     
     saveData();
-    populateTable();
     openModal(currentViewedPatientId);
     switchTab('vitals');
 }
@@ -879,9 +875,7 @@ async function uploadToCloud() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-    } catch (e) {
-        // Fails silently so it doesn't break the app
-    }
+    } catch (e) {}
 }
 
 async function downloadFromCloud() {
@@ -902,15 +896,12 @@ async function downloadFromCloud() {
             localStorage.setItem('ehr_last_modified', localLastModified);
             
             saveData(true); 
-            refreshUI();
             
             if (currentViewedPatientId && document.getElementById('patient-modal').style.display === 'flex') {
                 openModal(currentViewedPatientId);
             }
         }
-    } catch(e) {
-        // Fails silently if internet drops
-    }
+    } catch(e) {}
 }
 
 function forceCloudSync() {
