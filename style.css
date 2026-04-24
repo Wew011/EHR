@@ -168,7 +168,6 @@ button:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); filter
 .back-btn { width: auto; background: var(--card-bg); color: var(--text-main); border: 1px solid #e2e8f0; box-shadow: var(--shadow-sm); }
 .back-btn:hover { background: #f1f5f9; color: var(--text-dark); transform: none;}
 
-/* Ensure tables don't break layout on small screens */
 .table-container { background: var(--card-bg); border-radius: var(--radius-lg); padding: 25px; box-shadow: var(--shadow-md); overflow-x: auto; border: 1px solid rgba(225, 29, 72, 0.05);}
 table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 600px; }
 th { color: var(--primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 18px 20px; font-weight: 800; background: var(--primary-light); border-bottom: 2px solid #fbcfe8; }
@@ -245,6 +244,8 @@ tbody tr:last-child td { border-bottom: none; }
 .vital-box:nth-child(2)::before { background: var(--primary); } 
 .vital-box:nth-child(3)::before { background: #fb923c; } 
 .vital-box:nth-child(4)::before { background: #0ea5e9; } 
+.vital-box:nth-child(5)::before { background: #8b5cf6; } 
+.vital-box:nth-child(6)::before { background: #14b8a6; } 
 
 .red-alert-card { background-color: #ffcccc !important; border-color: #ff0000 !important; animation: pulse 2s infinite;}
 .red-alert-card::before { background: #ff0000 !important; }
@@ -260,10 +261,12 @@ tbody tr:last-child td { border-bottom: none; }
 .diet-value { font-size: 22px; font-weight: 800; color: #78350f;}
 
 /* =========================================
-   NEW NOTIFICATION & REPORT STYLES
+   NOTIFICATION & REPORT STYLES
 ========================================= */
 .notif-item { display: flex; align-items: center; padding: 18px; border-radius: 14px; border: 1px solid var(--border-color); background: #f8fafc; transition: var(--transition);}
 .notif-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm);}
+.notif-item.clickable { cursor: pointer; position: relative; }
+.notif-item.clickable:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-3px); box-shadow: var(--shadow-md);}
 .notif-icon { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 15px; flex-shrink: 0;}
 .notif-danger { background: #fff1f2; color: #e11d48; }
 .notif-warning { background: #fffbeb; color: #d97706; }
@@ -271,12 +274,11 @@ tbody tr:last-child td { border-bottom: none; }
 .notif-success { background: #ecfdf5; color: #059669; }
 .notif-content h4 { font-size: 15px; color: var(--text-dark); margin-bottom: 4px; font-weight: 700;}
 .notif-content p { font-size: 13px; color: var(--text-light); font-weight: 500;}
+.unread-dot { width: 12px; height: 12px; background: var(--secondary); border-radius: 50%; margin-left: auto; flex-shrink: 0; box-shadow: 0 0 5px rgba(225, 29, 72, 0.5);}
 
 /* =========================================
    RESPONSIVE DESIGN (Tablets & Mobile)
 ========================================= */
-
-/* Tablet (iPad & smaller screens) */
 @media (max-width: 1024px) {
     .stats-grid, .quick-actions-row { grid-template-columns: repeat(2, 1fr); }
     .vitals-grid { grid-template-columns: repeat(2, 1fr); }
@@ -286,48 +288,34 @@ tbody tr:last-child td { border-bottom: none; }
     .banner-icon-bg { right: -20px; font-size: 100px; }
 }
 
-/* Mobile Phones */
 @media (max-width: 768px) {
     #app-layout { flex-direction: column; }
-    
-    /* Make sidebar horizontal and stick to top */
     .sidebar { width: 100%; height: auto; padding: 15px 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 100; position: sticky; top: 0;}
     .logo { margin-bottom: 15px; justify-content: center; }
     .nav-links { display: flex; overflow-x: auto; white-space: nowrap; padding-bottom: 5px; gap: 10px; margin-bottom: 0;}
     .nav-links li { margin-bottom: 0; margin-top: 0 !important; flex: 0 0 auto; padding: 10px 15px; }
-    
-    /* Main Content adjustments */
     .main-content { padding: 20px; height: auto; }
     .dashboard-header { flex-direction: column; gap: 15px; align-items: stretch; }
     .header-controls { flex-wrap: wrap; justify-content: space-between; width: 100%; gap: 10px; }
     .search-box { flex: 1; min-width: 200px; }
-    
     .dashboard-banner { flex-direction: column; text-align: center; padding: 25px 20px; }
     .banner-buttons { justify-content: center; flex-wrap: wrap; }
     .banner-icon-bg { display: none; }
-    
     .section-header { flex-direction: column; align-items: flex-start; gap: 15px; }
     .section-header button { width: 100%; justify-content: center; }
-    
     .stats-grid, .quick-actions-row, .vitals-grid { grid-template-columns: 1fr; gap: 15px; }
-    
     .widget-header { flex-direction: column; align-items: flex-start; gap: 15px; }
     .widget-tabs { flex-wrap: wrap; width: 100%; }
     .w-tab { flex: 1; text-align: center; }
-    
-    /* Modal scaling */
     .modal-content { padding: 25px; width: 95% !important; margin: 10px; max-height: 95vh;}
     .modal-header { flex-direction: column; align-items: flex-start; gap: 15px; }
     .modal-actions { width: 100%; display: flex; flex-wrap: wrap; }
     .header-btn { flex: 1; justify-content: center; }
     .info-grid { grid-template-columns: 1fr; }
-    
-    /* Tables scrolling fix */
     .table-container { padding: 15px; }
     th, td { white-space: nowrap; padding: 12px 15px; }
 }
 
-/* Extra Small Phones */
 @media (max-width: 480px) {
     .login-box { width: 95%; padding: 30px 20px; }
     .modal-tabs { flex-wrap: wrap; width: 100%; }
