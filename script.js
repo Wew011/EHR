@@ -40,7 +40,6 @@ function getPatientAlerts(v, r) {
     // Check Clinical Assessment (Record)
     if (r) {
         if (r.neuro && r.neuro !== '-' && !['Alert'].includes(r.neuro)) alerts.push('Abnormal Neuro');
-        if (r.resp && r.resp !== '-' && !['Normal/Regular'].includes(r.resp)) alerts.push('Abnormal Breathing Pattern');
         if (r.skin && r.skin !== '-' && !['Normal', 'Pinkish'].includes(r.skin)) alerts.push('Abnormal Skin Color');
         if (r.bowel && r.bowel !== '-' && !['Normal Active'].includes(r.bowel)) alerts.push('Abnormal Bowel Sounds');
         if (r.edema && r.edema !== '-' && !['None (0)'].includes(r.edema)) alerts.push('Edema Present');
@@ -81,15 +80,13 @@ let currentViewedPatientId = null;
 
 let localDataHash = "";
 
-// Creates a unique string footprint of your entire database
 function generateDataHash(pts, appts, lbs, pharm) {
     return JSON.stringify({ pts, appts, lbs, pharm });
 }
 
-// Safely forces missing fields to exist so the app never crashes
 function sanitizeData() {
     patients.forEach(p => {
-        if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
+        if (!p.record) p.record = { neuro: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
         if (!p.vitals) p.vitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
         if (!p.vitalsHistory) p.vitalsHistory = [];
     });
@@ -100,9 +97,9 @@ function initData() {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v4'));
     } else {
         patients = [
-            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 115, bpDia: 75, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
-            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 105, temp: 38.2, spo2: 94, resp: 22, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
-            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 110, bpDia: 70, hr: 88, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
+            { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 115, bpDia: 75, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
+            { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 105, temp: 38.2, spo2: 94, resp: 22, bmi: 26.1 }, record: { neuro: 'Lethargic', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
+            { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 110, bpDia: 70, hr: 88, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
     }
 
@@ -113,7 +110,6 @@ function initData() {
     saveData(true); 
 }
 
-// Universal UI Refresher: Safely redraws the entire screen instantly
 function refreshUI() {
     sanitizeData();
     try { updateDashboards(); } catch(e){}
@@ -131,10 +127,8 @@ function saveData(skipUpload = false) {
     localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
     localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
     
-    // Update our local footprint hash
     localDataHash = generateDataHash(patients, appointments, labs, pharmacy);
     
-    // Force aggressive UI redraw
     refreshUI();
     
     if(!skipUpload) {
@@ -287,7 +281,6 @@ function populateRecentPatientsWidget() {
         let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
         let displayTime = mockTimes[index] || '12:00 PM';
         
-        // Dynamic Red Tag Generation with Bell Icon for Dashboard
         let r = p.record || {};
         let assessmentTags = '';
         
@@ -299,12 +292,10 @@ function populateRecentPatientsWidget() {
         };
 
         assessmentTags += createTag('Neuro', r.neuro, ['Alert']);
-        assessmentTags += createTag('Resp', r.resp, ['Normal/Regular']);
         assessmentTags += createTag('Skin', r.skin, ['Normal', 'Pinkish']);
         assessmentTags += createTag('Bowel', r.bowel, ['Normal Active']);
         assessmentTags += createTag('Edema', r.edema, ['None (0)']);
 
-        // Default layout consistency
         if (assessmentTags === '') {
             let neuroText = r.neuro && r.neuro !== '-' ? r.neuro : '-';
             assessmentTags = `<span style="font-size: 11px; color: var(--primary); font-weight: 600; background: var(--primary-light); padding: 3px 7px; border-radius: 4px; display: inline-block; margin-top: 5px;">Neuro: ${neuroText}</span>`;
@@ -346,7 +337,7 @@ function savePatient(e) {
     const idField = document.getElementById('p-id').value;
     
     let initialVitals = { bpSys: '-', bpDia: '-', hr: '-', temp: '-', spo2: '-', resp: '-', bmi: '-' };
-    let initialRecord = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
+    let initialRecord = { neuro: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
     
     const newPatient = {
         id: idField ? idField : 'P00' + (patients.length + 1),
@@ -381,7 +372,6 @@ function savePatient(e) {
         alert('Patient saved successfully!');
     }
 
-    // Call saveData which natively forces UI redraw instantly
     saveData();
     showSection('patient-records', document.querySelectorAll('.nav-links li')[1]);
 }
@@ -570,7 +560,7 @@ function openModal(patientId) {
     if(!p) return;
 
     if (!p.vitalsHistory) p.vitalsHistory = [];
-    if (!p.record) p.record = { neuro: '-', resp: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
+    if (!p.record) p.record = { neuro: '-', skin: '-', bowel: '-', edema: '-', timestamp: '-' };
 
     document.getElementById('modal-patient-name').innerText = p.name;
     document.getElementById('modal-patient-info').innerText = `${p.id} • ${p.age} yrs • ${p.sex} • Room: ${p.room}`;
@@ -620,6 +610,7 @@ function openModal(patientId) {
     // --- Dynamic Record Highlighting in Modal ---
     const styleAssessmentCard = (elementId, value, normalValues) => {
         const el = document.getElementById(elementId);
+        if(!el) return;
         el.innerText = value;
         const card = el.parentElement;
         const label = el.previousElementSibling;
@@ -636,7 +627,6 @@ function openModal(patientId) {
     };
 
     styleAssessmentCard('rec-neuro', p.record.neuro, ['Alert']);
-    styleAssessmentCard('rec-resp', p.record.resp, ['Normal/Regular']);
     styleAssessmentCard('rec-skin', p.record.skin, ['Normal', 'Pinkish']);
     styleAssessmentCard('rec-bowel', p.record.bowel, ['Normal Active']);
     styleAssessmentCard('rec-edema', p.record.edema, ['None (0)']);
@@ -661,7 +651,6 @@ function openRecordModal() {
     document.getElementById('ur-admission').value = p.date || '';
     document.getElementById('ur-timestamp').value = currentTs;
     document.getElementById('ur-neuro').value = p.record.neuro;
-    document.getElementById('ur-resp').value = p.record.resp;
     document.getElementById('ur-skin').value = p.record.skin;
     document.getElementById('ur-bowel').value = p.record.bowel;
     document.getElementById('ur-edema').value = p.record.edema;
@@ -682,7 +671,6 @@ function savePatientRecord(e) {
 
     patients[index].record = {
         neuro: document.getElementById('ur-neuro').value,
-        resp: document.getElementById('ur-resp').value,
         skin: document.getElementById('ur-skin').value,
         bowel: document.getElementById('ur-bowel').value,
         edema: document.getElementById('ur-edema').value,
@@ -885,20 +873,16 @@ async function downloadFromCloud() {
         const cloudData = await response.json();
         if (!cloudData) return;
 
-        // Generate a text string footprint of the cloud data
         let cloudHash = generateDataHash(cloudData.patients || [], cloudData.appointments || [], cloudData.labs || [], cloudData.pharmacy || []);
 
-        // If the cloud footprint is different than our local footprint, update instantly!
         if (cloudHash !== localDataHash && cloudHash !== generateDataHash([],[],[],[])) {
             patients = cloudData.patients || [];
             appointments = cloudData.appointments || [];
             labs = cloudData.labs || [];
             pharmacy = cloudData.pharmacy || [];
             
-            // Overwrite local memory and instantly redraw UI
             saveData(true); 
             
-            // If viewing a patient, seamlessly re-open to show new red alerts
             if (currentViewedPatientId && document.getElementById('patient-modal').style.display === 'flex') {
                 openModal(currentViewedPatientId);
             }
@@ -910,5 +894,4 @@ function forceCloudSync() {
     uploadToCloud();
 }
 
-// Check the cloud footprint every 3 seconds for seamless background updates
 setInterval(downloadFromCloud, 3000);
