@@ -22,20 +22,29 @@ function getExactTimestamp() {
 // ==========================================
 function getPatientAlerts(v, r) {
     let alerts = [];
-    if (!v) return alerts;
     
-    if (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) alerts.push('Abnormal Temp');
-    if (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) alerts.push('Abnormal Heart Rate');
-    if (v.resp !== '-' && (v.resp < 12 || v.resp > 20)) alerts.push('Abnormal Resp. Rate');
-    if (v.spo2 !== '-' && v.spo2 < 95) alerts.push('Low Oxygen (SpO2)');
-    if (v.bmi !== '-' && (v.bmi < 18.5 || v.bmi > 24.9)) alerts.push('Abnormal BMI');
+    // Check Vitals
+    if (v) {
+        if (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) alerts.push('Abnormal Temp');
+        if (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) alerts.push('Abnormal Heart Rate');
+        if (v.resp !== '-' && (v.resp < 12 || v.resp > 20)) alerts.push('Abnormal Resp. Rate');
+        if (v.spo2 !== '-' && v.spo2 < 95) alerts.push('Low Oxygen (SpO2)');
+        if (v.bmi !== '-' && (v.bmi < 18.5 || v.bmi > 24.9)) alerts.push('Abnormal BMI');
+        
+        let bpBad = false;
+        if (v.bpSys !== '-' && (v.bpSys < 90 || v.bpSys > 120)) bpBad = true;
+        if (v.bpDia !== '-' && (v.bpDia < 60 || v.bpDia > 80)) bpBad = true;
+        if (bpBad) alerts.push('Abnormal Blood Pressure');
+    }
     
-    let bpBad = false;
-    if (v.bpSys !== '-' && (v.bpSys < 90 || v.bpSys > 120)) bpBad = true;
-    if (v.bpDia !== '-' && (v.bpDia < 60 || v.bpDia > 80)) bpBad = true;
-    if (bpBad) alerts.push('Abnormal Blood Pressure');
-    
-    if (r && r.neuro && r.neuro !== '-' && r.neuro !== 'Alert') alerts.push('Neurological Alert');
+    // Check Clinical Assessment (Record) based on strict normal/abnormal rules
+    if (r) {
+        if (r.neuro && r.neuro !== '-' && !['Alert'].includes(r.neuro)) alerts.push('Abnormal Neuro');
+        if (r.resp && r.resp !== '-' && !['Normal/Regular'].includes(r.resp)) alerts.push('Abnormal Breathing Pattern');
+        if (r.skin && r.skin !== '-' && !['Normal', 'Pinkish'].includes(r.skin)) alerts.push('Abnormal Skin Color');
+        if (r.bowel && r.bowel !== '-' && !['Normal Active'].includes(r.bowel)) alerts.push('Abnormal Bowel Sounds');
+        if (r.edema && r.edema !== '-' && !['None (0)'].includes(r.edema)) alerts.push('Edema Present');
+    }
     
     return alerts;
 }
@@ -49,8 +58,6 @@ function login() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-layout').style.display = 'flex';
     initData(); 
-    
-    // Immediately pull fresh data from cloud on login
     downloadFromCloud();
 }
 
@@ -72,20 +79,18 @@ let labs = [];
 let pharmacy = [];
 let currentViewedPatientId = null; 
 
-// Track local modification time to prevent overwriting cloud data
 let localLastModified = parseInt(localStorage.getItem('ehr_last_modified')) || 0;
 
 function initData() {
     if (localStorage.getItem('ehr_patients_v4')) {
         patients = JSON.parse(localStorage.getItem('ehr_patients_v4'));
     } else {
-        // First time loading - create mock data, but DO NOT upload to cloud yet!
         patients = [
             { id: 'P001', name: 'Sarah Johnson', age: 34, sex: 'Female', contact: '555-1234', blood: 'O+', date: '4/15/2024', room: 'General Ward - Bed 1', doctor: 'Dr. Maria Santos', diet: 'General Diet', allergies: 'None', complaint: 'Routine Checkup', vitals: { bpSys: 115, bpDia: 75, hr: 78, temp: 37.0, spo2: 98, resp: 16, bmi: 22.5 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/15/2024 09:30:00' } }, 
             { id: 'P002', name: 'Michael Chen', age: 45, sex: 'Male', contact: '555-5678', blood: 'A+', date: '4/18/2024', room: 'Private Room 102', doctor: 'Dr. Juan Dela Cruz', diet: 'Low Sodium', allergies: 'Penicillin', complaint: 'Chest Pain', vitals: { bpSys: 165, bpDia: 95, hr: 105, temp: 38.2, spo2: 94, resp: 22, bmi: 26.1 }, record: { neuro: 'Lethargic', resp: 'Labored', skin: 'Pale', bowel: 'Hypoactive', edema: '1+ Pitting', timestamp: '4/18/2024 14:20:15' } },
             { id: 'P003', name: 'Emily Rodriguez', age: 28, sex: 'Female', contact: '555-3456', blood: 'B-', date: '4/10/2024', room: 'Outpatient', doctor: 'Dr. Elena Reyes', diet: 'Regular', allergies: 'Peanuts', complaint: 'Fever', vitals: { bpSys: 110, bpDia: 70, hr: 88, temp: 36.8, spo2: 99, resp: 14, bmi: 21.0 }, record: { neuro: 'Alert', resp: 'Normal/Regular', skin: 'Normal', bowel: 'Normal Active', edema: 'None', timestamp: '4/10/2024 11:05:40' } }
         ];
-        localLastModified = 0; // Set to 0 so cloud immediately overwrites this if cloud has data
+        localLastModified = 0; 
     }
 
     patients.forEach(p => {
@@ -120,7 +125,6 @@ function initData() {
         ];
     }
 
-    // Save locally without uploading (to avoid overwriting teammate's cloud data on initial load)
     saveData(true); 
     refreshUI();
 }
@@ -133,7 +137,6 @@ function refreshUI() {
     populatePharmacy();
 }
 
-// Automatically called whenever YOU edit or add something
 function saveData(skipUpload = false) {
     localStorage.setItem('ehr_patients_v4', JSON.stringify(patients));
     localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
@@ -143,7 +146,6 @@ function saveData(skipUpload = false) {
     updateDashboards();
     
     if(!skipUpload) {
-        // You made a change! Update the timestamp and upload to cloud
         localLastModified = Date.now();
         localStorage.setItem('ehr_last_modified', localLastModified);
         uploadToCloud();
@@ -294,8 +296,29 @@ function populateRecentPatientsWidget() {
 
         let initials = p.name.split(' ').map(n=>n[0]).join('').substring(0,2);
         let displayTime = mockTimes[index] || '12:00 PM';
-        let neuroText = p.record && p.record.neuro ? p.record.neuro : '-';
-        let neuroStyle = (neuroText !== '-' && neuroText !== 'Alert') ? 'color: #e11d48; font-weight: 800;' : 'color: var(--primary); font-weight: 600;';
+        
+        // --- NEW LOGIC: Dynamic Red Tag Generation with Bell Icon ---
+        let r = p.record || {};
+        let assessmentTags = '';
+        
+        const createTag = (label, val, normalValues) => {
+            if (val && val !== '-' && !normalValues.includes(val)) {
+                return `<span style="font-size: 11px; color: #e11d48; font-weight: 800; background: #ffe4e6; padding: 3px 7px; border-radius: 4px; margin-right: 5px; display: inline-block; margin-top: 5px; border: 1px solid #fda4af; box-shadow: 0 1px 3px rgba(225,29,72,0.1);"><i class="fas fa-bell"></i> ${label}: ${val}</span>`;
+            }
+            return '';
+        };
+
+        assessmentTags += createTag('Neuro', r.neuro, ['Alert']);
+        assessmentTags += createTag('Resp', r.resp, ['Normal/Regular']);
+        assessmentTags += createTag('Skin', r.skin, ['Normal', 'Pinkish']);
+        assessmentTags += createTag('Bowel', r.bowel, ['Normal Active']);
+        assessmentTags += createTag('Edema', r.edema, ['None (0)']);
+
+        // If no abnormal tags exist, show default normal tag to keep layout consistent
+        if (assessmentTags === '') {
+            let neuroText = r.neuro && r.neuro !== '-' ? r.neuro : '-';
+            assessmentTags = `<span style="font-size: 11px; color: var(--primary); font-weight: 600; background: var(--primary-light); padding: 3px 7px; border-radius: 4px; display: inline-block; margin-top: 5px;">Neuro: ${neuroText}</span>`;
+        }
 
         list.innerHTML += `
             <div class="recent-list-item">
@@ -304,7 +327,7 @@ function populateRecentPatientsWidget() {
                     <div>
                         <h4>${p.name}</h4>
                         <p style="margin-bottom: 2px;">${p.complaint} • Age ${p.age}</p>
-                        <span style="font-size: 11px; ${neuroStyle} background: var(--primary-light); padding: 2px 6px; border-radius: 4px;">Neuro: ${neuroText}</span>
+                        ${assessmentTags}
                     </div>
                 </div>
                 <div class="r-patient-status">
@@ -572,7 +595,7 @@ function openModal(patientId) {
     document.getElementById('modal-diet').innerText = p.diet;
     document.getElementById('modal-complaint').innerText = p.complaint;
 
-    // Apply strict normal range checks for the Modal UI glow
+    // Apply strict normal range checks for the Vitals UI glow
     let v = p.vitals || {};
     
     let bpBad = (v.bpSys !== '-' && (v.bpSys < 90 || v.bpSys > 120)) || (v.bpDia !== '-' && (v.bpDia < 60 || v.bpDia > 80));
@@ -597,11 +620,30 @@ function openModal(patientId) {
 
     document.getElementById('rec-admission').innerText = p.date;
     document.getElementById('rec-timestamp').innerText = p.record.timestamp || '-';
-    document.getElementById('rec-neuro').innerText = p.record.neuro;
-    document.getElementById('rec-resp').innerText = p.record.resp;
-    document.getElementById('rec-skin').innerText = p.record.skin;
-    document.getElementById('rec-bowel').innerText = p.record.bowel;
-    document.getElementById('rec-edema').innerText = p.record.edema;
+
+    // --- NEW LOGIC: Dynamic Record Highlighting in Modal ---
+    const styleAssessmentCard = (elementId, value, normalValues) => {
+        const el = document.getElementById(elementId);
+        el.innerText = value;
+        const card = el.parentElement;
+        const label = el.previousElementSibling;
+        
+        if (value !== '-' && !normalValues.includes(value)) {
+            card.classList.add('alert-card');
+            el.classList.add('alert-text');
+            label.classList.add('alert-text');
+        } else {
+            card.classList.remove('alert-card');
+            el.classList.remove('alert-text');
+            label.classList.remove('alert-text');
+        }
+    };
+
+    styleAssessmentCard('rec-neuro', p.record.neuro, ['Alert']);
+    styleAssessmentCard('rec-resp', p.record.resp, ['Normal/Regular']);
+    styleAssessmentCard('rec-skin', p.record.skin, ['Normal', 'Pinkish']);
+    styleAssessmentCard('rec-bowel', p.record.bowel, ['Normal Active']);
+    styleAssessmentCard('rec-edema', p.record.edema, ['None (0)']);
 
     renderChart(p);
     populateHistoryTable(p);
@@ -826,11 +868,9 @@ function populateHistoryTable(p) {
 // --- INVISIBLE CLOUD LIVE-SYNC ENGINE ---
 // ==========================================
 
-// Changed DB Key to completely wipe the previous corrupted DB
 const CLOUD_DB_KEY = "ubstudehr_db_2024_live_v2"; 
 const CLOUD_API_URL = `https://kvs.zackumar.com/keys/${CLOUD_DB_KEY}`;
 
-// Uploads data silently to the cloud whenever someone saves
 async function uploadToCloud() {
     const payload = { patients, appointments, labs, pharmacy, lastModified: localLastModified };
     try {
@@ -844,7 +884,6 @@ async function uploadToCloud() {
     }
 }
 
-// Downloads data from teammates every 3 seconds invisibly
 async function downloadFromCloud() {
     try {
         const response = await fetch(CLOUD_API_URL);
@@ -853,24 +892,18 @@ async function downloadFromCloud() {
         const cloudData = await response.json();
         if (!cloudData || !cloudData.lastModified) return;
 
-        // ONLY download and overwrite if the teammate's cloud data is NEWER than our local data
         if (cloudData.lastModified > localLastModified) {
             patients = cloudData.patients || [];
             appointments = cloudData.appointments || [];
             labs = cloudData.labs || [];
             pharmacy = cloudData.pharmacy || [];
             
-            // Match our local timestamp to the cloud so we don't redownload immediately
             localLastModified = cloudData.lastModified;
             localStorage.setItem('ehr_last_modified', localLastModified);
             
-            // Save to browser silently (skip upload so we don't create an infinite loop)
             saveData(true); 
-            
-            // Refresh screen silently
             refreshUI();
             
-            // If the patient modal is currently open, refresh it so the new data shows instantly
             if (currentViewedPatientId && document.getElementById('patient-modal').style.display === 'flex') {
                 openModal(currentViewedPatientId);
             }
@@ -880,11 +913,9 @@ async function downloadFromCloud() {
     }
 }
 
-// Manual trigger linked to the invisible button just in case you ever need it
 function forceCloudSync() {
     uploadToCloud();
     alert("Manual Cloud Sync Triggered Invisibly.");
 }
 
-// Check for live updates every 3 seconds
 setInterval(downloadFromCloud, 3000);
