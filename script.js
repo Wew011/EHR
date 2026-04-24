@@ -1,3 +1,4 @@
+
 // --- Initialize Dynamic Dates on Load ---
 document.addEventListener('DOMContentLoaded', () => {
     const dateEl = document.getElementById('current-date-display');
@@ -20,40 +21,26 @@ function getExactTimestamp() {
 // ==========================================
 // --- NEW STRICT MEDICAL LOGIC ENGINE ---
 // ==========================================
-
-// Returns an array of specific alerts based on EXACT normal ranges
 function getPatientAlerts(v, r) {
     let alerts = [];
     if (!v) return alerts;
     
-    // Body Temperature: 36.5 - 37.5 C
     if (v.temp !== '-' && (v.temp < 36.5 || v.temp > 37.5)) alerts.push('Abnormal Temp');
-    
-    // Pulse (Heart Rate): 60 - 100 bpm
     if (v.hr !== '-' && (v.hr < 60 || v.hr > 100)) alerts.push('Abnormal Heart Rate');
-    
-    // Respiratory Rate: 12 - 20 breaths per minute
     if (v.resp !== '-' && (v.resp < 12 || v.resp > 20)) alerts.push('Abnormal Resp. Rate');
-    
-    // Oxygen saturation (SpO2): 95 - 100%
     if (v.spo2 !== '-' && v.spo2 < 95) alerts.push('Low Oxygen (SpO2)');
-    
-    // Normal BMI: 18.5 - 24.9
     if (v.bmi !== '-' && (v.bmi < 18.5 || v.bmi > 24.9)) alerts.push('Abnormal BMI');
     
-    // Blood pressure: 90-120 (Sys) / 60-80 (Dia)
     let bpBad = false;
     if (v.bpSys !== '-' && (v.bpSys < 90 || v.bpSys > 120)) bpBad = true;
     if (v.bpDia !== '-' && (v.bpDia < 60 || v.bpDia > 80)) bpBad = true;
     if (bpBad) alerts.push('Abnormal Blood Pressure');
     
-    // Neurological check
     if (r && r.neuro && r.neuro !== '-' && r.neuro !== 'Alert') alerts.push('Neurological Alert');
     
     return alerts;
 }
 
-// Determines if patient triggers notification/dashboard alert
 function isPatientCritical(p) {
     return getPatientAlerts(p.vitals, p.record).length > 0;
 }
@@ -63,6 +50,9 @@ function login() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-layout').style.display = 'flex';
     initData(); 
+    
+    // Automatically fetch from cloud as soon as we log in
+    downloadFromCloud();
 }
 
 function showSection(sectionId, navElement) {
@@ -128,6 +118,11 @@ function initData() {
         saveData();
     }
 
+    refreshUI();
+}
+
+// Function to refresh the UI elements without completely reloading the page
+function refreshUI() {
     updateDashboards();
     populateTable();
     populateAppointments();
@@ -135,12 +130,18 @@ function initData() {
     populatePharmacy();
 }
 
-function saveData() {
+function saveData(skipUpload = false) {
     localStorage.setItem('ehr_patients_v4', JSON.stringify(patients));
     localStorage.setItem('ehr_appointments_v2', JSON.stringify(appointments));
     localStorage.setItem('ehr_labs_v2', JSON.stringify(labs));
     localStorage.setItem('ehr_pharmacy_v2', JSON.stringify(pharmacy));
+    
     updateDashboards();
+    
+    // Automatically trigger cloud sync whenever data is saved locally
+    if(!skipUpload) {
+        uploadToCloud();
+    }
 }
 
 // --- Dashboards & Modals ---
@@ -170,7 +171,7 @@ function showNotifications() {
     list.innerHTML = '';
     let hasNotifs = false;
 
-    // 1. Patient Alerts (Generated Individually)
+    // 1. Patient Alerts
     patients.forEach(p => {
         let alerts = getPatientAlerts(p.vitals, p.record);
         
@@ -221,7 +222,6 @@ function showNotifications() {
             </div>`;
     }
 
-    // If perfectly healthy and no pending
     if (!hasNotifs) {
         list.innerHTML = `
             <div class="notif-item">
@@ -652,7 +652,6 @@ function savePatientRecord(e) {
     closeRecordModal();
     openModal(currentViewedPatientId);
     switchTab('record'); 
-    alert('Patient record updated successfully!');
 }
 
 // --- Vitals History Update Logic ---
@@ -820,51 +819,66 @@ function populateHistoryTable(p) {
     });
 }
 
+
 // ==========================================
-// --- EXPORT / IMPORT DATABASE LOGIC ---
+// --- INVISIBLE CLOUD LIVE-SYNC ENGINE ---
 // ==========================================
 
-function exportData() {
-    const data = {
-        patients: patients,
-        appointments: appointments,
-        labs: labs,
-        pharmacy: pharmacy
-    };
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "ubstudEHR_database_backup.json");
-    document.body.appendChild(downloadAnchorNode); 
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
+// This uses a free, public Key-Value database so teammates sync seamlessly
+// over the internet without needing to set up Firebase or user accounts.
+const CLOUD_DB_KEY = "ubstudehr_db_2024_live"; 
+const CLOUD_API_URL = `https://kvs.zackumar.com/keys/${CLOUD_DB_KEY}`;
+
+// Uploads data silently to the cloud whenever someone saves
+async function uploadToCloud() {
+    const payload = { patients, appointments, labs, pharmacy };
+    try {
+        await fetch(CLOUD_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        console.log("Offline mode: Cloud upload paused.");
+    }
 }
 
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+// Downloads data from teammates every 5 seconds invisibly
+async function downloadFromCloud() {
+    try {
+        const response = await fetch(CLOUD_API_URL);
+        if (!response.ok) return;
+        
+        const cloudData = await response.json();
+        if (!cloudData) return;
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const importedData = JSON.parse(e.target.result);
+        let currentTotal = patients.length + appointments.length + labs.length + pharmacy.length;
+        let cloudTotal = (cloudData.patients?.length || 0) + (cloudData.appointments?.length || 0) + 
+                         (cloudData.labs?.length || 0) + (cloudData.pharmacy?.length || 0);
+
+        // If a teammate added data (cloud has more items), auto-update the local screen
+        if (cloudTotal > currentTotal) {
+            patients = cloudData.patients || [];
+            appointments = cloudData.appointments || [];
+            labs = cloudData.labs || [];
+            pharmacy = cloudData.pharmacy || [];
             
-            if (importedData.patients && importedData.appointments) {
-                patients = importedData.patients;
-                appointments = importedData.appointments;
-                labs = importedData.labs || [];
-                pharmacy = importedData.pharmacy || [];
-                
-                saveData(); 
-                alert("Database successfully loaded! The page will now reload to apply the new data.");
-                location.reload();
-            } else {
-                alert("Invalid file format. Please upload a valid ubstudEHR database backup JSON file.");
-            }
-        } catch (err) {
-            alert("Error reading file. The file might be corrupted.");
+            // Save to browser silently
+            saveData(true); 
+            
+            // Refresh screen silently
+            refreshUI();
         }
-        event.target.value = '';
-    };
-    reader.readAsText(file);
+    } catch(e) {
+        // Fails silently if internet drops, so it doesn't break the website
+    }
 }
+
+// Manual trigger linked to the invisible button just in case
+function forceCloudSync() {
+    uploadToCloud();
+    alert("Manual Cloud Sync Triggered Invisibly.");
+}
+
+// Run the Live Engine check every 5 seconds
+setInterval(downloadFromCloud, 5000);
